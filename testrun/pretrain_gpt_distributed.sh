@@ -13,9 +13,9 @@ NODE_RANK=0
 WORLD_SIZE=$(($GPUS_PER_NODE*$NNODES))
 
 CHECKPOINT_PATH=/mnt/checkpoints/gpt2_345m
-VOCAB_FILE=examples/gpt2-vocab.json
-MERGE_FILE=examples/gpt2-merges.txt
-DATA_PATH=examples/dataset/pile_gpt_train_text_document
+VOCAB_FILE=testrun/gpt2-vocab.json
+MERGE_FILE=testrun/gpt2-merges.txt
+DATA_PATH=testrun/dataset/pile_gpt_train_text_document
 
 DISTRIBUTED_ARGS="
     --nproc_per_node $GPUS_PER_NODE \
@@ -64,4 +64,4 @@ torchrun $DISTRIBUTED_ARGS pretrain_gpt.py \
     $OUTPUT_ARGS \
     --distributed-backend nccl \
     --save $CHECKPOINT_PATH \
-    --load $CHECKPOINT_PATH
+    # --load $CHECKPOINT_PATH
