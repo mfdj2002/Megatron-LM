@@ -57,7 +57,7 @@ sudo apt-get install -y --no-install-recommends libcap2
 cd ${STAGE_DIR} && \
 wget -q -O - http://www.mellanox.com/downloads/ofed/MLNX_OFED-${MLNX_OFED_VERSION}/MLNX_OFED_LINUX-${MLNX_OFED_VERSION}-ubuntu20.04-x86_64.tgz | tar xzf - && \
 cd MLNX_OFED_LINUX-${MLNX_OFED_VERSION}-ubuntu20.04-x86_64 && \
-./mlnxofedinstall --force --user-space-only --add-kernel-support --without-fw-update --all -q && \
+sudo ./mlnxofedinstall --force --user-space-only --add-kernel-support --without-fw-update --all -q && \
 cd ${STAGE_DIR} && \
 rm -rf ${STAGE_DIR}/MLNX_OFED_LINUX-${MLNX_OFED_VERSION}-ubuntu20.04-x86_64*
 
