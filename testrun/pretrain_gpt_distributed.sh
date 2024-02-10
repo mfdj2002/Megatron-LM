@@ -2,7 +2,7 @@
 
 # Runs the "345M" parameter model
 
-# export CUDA_DEVICE_MAX_CONNECTIONS=1
+export CUDA_DEVICE_MAX_CONNECTIONS=1
 
 GPUS_PER_NODE=2
 # Change for multinode config
