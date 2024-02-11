@@ -11,4 +11,4 @@ fi
 
 # Run the Docker image
 echo "Running mfdj2002/megatron:latest..."
-docker run --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -v ~:/workspace -v /mnt:/mnt -it mfdj2002/megatron:latest
+docker run --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt -it mfdj2002/megatron:latest
