@@ -317,6 +317,7 @@ class GPTDataset(MegatronDataset):
                 ],
             )
         )
+        print(f"debug: cache_hit: {cache_hit}")
 
         num_tokens_per_epoch = self._get_num_tokens_per_epoch()
         num_epochs = self._get_num_epochs(num_tokens_per_epoch)
