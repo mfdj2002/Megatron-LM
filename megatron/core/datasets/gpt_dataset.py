@@ -299,8 +299,11 @@ class GPTDataset(MegatronDataset):
                 self.dataset.path_prefix, "cache", f"{type(self).__name__}_indices"
             )
 
-        get_path_to = lambda suffix: os.path.join(
-            path_to_cache, f"{self.unique_description_hash}-{type(self).__name__}-{suffix}"
+        # get_path_to = lambda suffix: os.path.join(
+        #     path_to_cache, f"{self.unique_description_hash}-{type(self).__name__}-{suffix}"
+        # )
+            get_path_to = lambda suffix: os.path.join(
+            path_to_cache, f"{type(self).__name__}-{suffix}"
         )
         path_to_description = get_path_to("description.txt")
         path_to_document_index = get_path_to("document_index.npy")
