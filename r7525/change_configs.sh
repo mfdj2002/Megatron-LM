@@ -1,9 +1,16 @@
 #!/bin/bash
 set -e
-set -x
+
+git config --global user.name mfdj2002
+git config --global user.email jf3516@columbia.edu
 
 # Make sure you are mounted
-sudo mount /dev/sda4 /mnt #for r7525
+if sudo mount | grep -q " on /mnt "; then
+    echo "already mounted on /mnt"
+else
+    echo "attempting to mount on /mnt"
+    sudo mount /dev/sda4 /mnt #for r7525
+fi
 
 # Move Docker data directory to /mnt/docker
 sudo systemctl stop docker
