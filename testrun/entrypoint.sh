@@ -1,0 +1,1 @@
+cd /workspace/Megatron-LM && ./testrun/run.sh "$@"
