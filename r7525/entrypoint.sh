@@ -1,1 +1,1 @@
-cd /workspace/Megatron-LM && ./testrun/run.sh "$@"
+cd /workspace/Megatron-LM && ./testrun/pretrain-gpt.sh "$@"
