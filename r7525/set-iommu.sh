@@ -23,10 +23,10 @@ old=`grep GRUB_CMDLINE_LINUX_DEFAULT ${grub_file}`
 
 new=${old::-1}${parameter}\"
 
-sed -i "s/${old}/${new}/g" $grub_file
+sudo sed -i "s/${old}/${new}/g" $grub_file
 
-update-grub
+sudo update-grub
 
 echo "Rebooting"
 
-reboot
+sudo reboot
