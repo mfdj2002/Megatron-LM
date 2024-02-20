@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo modprobe nvidia-peermem
+
 # Check if the Docker image exists
 image_exists=$(docker images -q mfdj2002/megatron:latest)
 
@@ -11,4 +13,5 @@ fi
 
 # Run the Docker image
 echo "Running mfdj2002/megatron:latest..."
-docker run --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt -it mfdj2002/megatron:latest
+docker run --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+        -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt -v /mnt/logs:/logs mfdj2002/megatron:latest
