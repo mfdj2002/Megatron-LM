@@ -7,6 +7,6 @@ RUN pip install --no-cache-dir transformers==4.30.0 \
     && python -c "import deepspeed; print(deepspeed.__version__)" \
     && python -c "import transformers; print(transformers.__version__)"
 
-COPY ~/Megatron-LM/testrun/entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
