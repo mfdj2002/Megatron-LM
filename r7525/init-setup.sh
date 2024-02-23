@@ -1,31 +1,29 @@
 #!/bin/bash
-set -e
+set -ex
 
 ##############################################################################
 # generate ssh keys
 ##############################################################################
 
-# Create the user SSH directory, just in case.
-mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh
+# # Create the user SSH directory, just in case.
+# mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh
 
-# Retrieve the server-generated RSA private key.
-geni-get key > $HOME/.ssh/id_rsa
-chmod 600 $HOME/.ssh/id_rsa
+# # Retrieve the server-generated RSA private key.
+# geni-get key > $HOME/.ssh/id_rsa
+# chmod 600 $HOME/.ssh/id_rsa
 
-# Derive the corresponding public key portion.
-ssh-keygen -y -f $HOME/.ssh/id_rsa > $HOME/.ssh/id_rsa.pub
+# # Derive the corresponding public key portion.
+# ssh-keygen -y -f $HOME/.ssh/id_rsa > $HOME/.ssh/id_rsa.pub
 
-# If you want to permit login authenticated by the auto-generated key,
-# then append the public half to the authorized_keys2 file:
-touch $HOME/.ssh/authorized_keys2
+# # If you want to permit login authenticated by the auto-generated key,
+# # then append the public half to the authorized_keys2 file:
+# touch $HOME/.ssh/authorized_keys2
 
-grep -q -f $HOME/.ssh/id_rsa.pub $HOME/.ssh/authorized_keys2 || cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys2
-
+# grep -q -f $HOME/.ssh/id_rsa.pub $HOME/.ssh/authorized_keys2 || cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys2
 
 ##############################################################################
 # disable nouveau
 ##############################################################################
-
 
 # Add the blacklist lines to the file
 echo "blacklist nouveau" | sudo tee /etc/modprobe.d/blacklist-nouveau.conf
@@ -34,24 +32,21 @@ echo "options nouveau modeset=0" | sudo tee -a /etc/modprobe.d/blacklist-nouveau
 # Update initramfs
 sudo update-initramfs -u
 
-
 ##############################################################################
 #disable iommu
 ##############################################################################
-
 
 status="off"
 parameter="intel_iommu="$status
 grub_file="/etc/default/grub"
 
-if dmesg | grep iommu | grep -q "amd"
-then
-    parameter="amd_iommu="$status
+if dmesg | grep iommu | grep -q "amd"; then
+  parameter="amd_iommu="$status
 fi
 
 echo "Adding booting parameter ${parameter} to ${grub_file}"
 
-old=`grep GRUB_CMDLINE_LINUX_DEFAULT ${grub_file}`
+old=$(grep GRUB_CMDLINE_LINUX_DEFAULT ${grub_file})
 
 new=${old::-1}${parameter}\"
 
@@ -75,10 +70,10 @@ group=$(id -gn)
 sudo chown -R $USER:$group $MNT_DIR
 
 for dir in .vscode-server .debug .cache .local logs tmp; do
-    sudo mkdir -p $MNT_DIR/$dir
-    sudo chown -R $USER:$group $MNT_DIR/$dir
-    rm -rf ~/$dir
-    ln -s $MNT_DIR/$dir ~/$dir
+  sudo mkdir -p $MNT_DIR/$dir
+  sudo chown -R $USER:$group $MNT_DIR/$dir
+  rm -rf ~/$dir
+  ln -s $MNT_DIR/$dir ~/$dir
 done
 
 ##############################################################################
@@ -86,9 +81,7 @@ done
 ##############################################################################
 
 # Update and upgrade the system
-sudo apt update
-
-sudo apt install docker.io -y
+sudo apt update && sudo apt install docker.io -y
 
 # Check if the docker group exists
 if ! getent group docker >/dev/null; then
@@ -106,20 +99,21 @@ else
   echo "$USER is already a member of the docker group."
 fi
 
-distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+distribution=$(
+  . /etc/os-release
+  echo $ID$VERSION_ID
+)
 curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-sudo apt-get update
-sudo apt-get install -y nvidia-docker2
+sudo apt-get update && sudo apt-get install -y nvidia-docker2
 sudo systemctl restart docker
-
 
 # Move Docker data directory to /mnt/docker
 sudo systemctl stop docker
 if [ ! -d "/mnt/docker" ]; then
-    sudo mv /var/lib/docker /mnt/docker
+  sudo mv /var/lib/docker /mnt/docker
 else
-    echo "/mnt/docker already exists, skipping move."
+  echo "/mnt/docker already exists, skipping move."
 fi
 # sudo systemctl start docker
 
@@ -132,11 +126,11 @@ sudo apt update && sudo apt install -y jq
 
 # Ensure the file exists and is none empty
 if [ ! -s "$CONFIG_FILE" ]; then
-    echo "{}" | sudo tee "$CONFIG_FILE" > /dev/null
+  echo "{}" | sudo tee "$CONFIG_FILE" >/dev/null
 fi
 
 # Use jq to modify the file (example: set "data-root" and enable "experimental" features and BuildKit)
-sudo jq '. + {"data-root": "/mnt/docker", "features": {"buildkit": true}}' "$CONFIG_FILE" | sudo tee "$TEMP_FILE" > /dev/null
+sudo jq '. + {"data-root": "/mnt/docker", "features": {"buildkit": true}}' "$CONFIG_FILE" | sudo tee "$TEMP_FILE" >/dev/null
 
 # Replace the original file with the modified one
 sudo mv "$TEMP_FILE" "$CONFIG_FILE"
