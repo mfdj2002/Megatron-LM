@@ -4,13 +4,13 @@
 #export NCCL_P2P_DISABLE=1
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-GPUS_PER_NODE=2
-# Change for multinode config
-MASTER_ADDR=localhost
-MASTER_PORT=6000
-NNODES=1
-NODE_RANK=0
-WORLD_SIZE=$(($GPUS_PER_NODE*$NNODES))
+# GPUS_PER_NODE=2
+# # Change for multinode config
+# MASTER_ADDR=localhost
+# MASTER_PORT=6000
+# NNODES=1
+# NODE_RANK=0
+# WORLD_SIZE=$(($GPUS_PER_NODE*$NNODES))
 
 CHECKPOINT_PATH=/mnt/checkpoints/gpt2_345m
 VOCAB_FILE=testrun/gpt2-vocab.json
@@ -63,5 +63,5 @@ torchrun $DISTRIBUTED_ARGS pretrain_gpt.py \
     $DATA_ARGS \
     $OUTPUT_ARGS \
     --distributed-backend nccl \
-    --save $CHECKPOINT_PATH \
-    # --load $CHECKPOINT_PATH
+    --save $CHECKPOINT_PATH
+# --load $CHECKPOINT_PATH
