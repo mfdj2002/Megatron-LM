@@ -1,5 +1,5 @@
 #!bin/bash
-set -ex
+set -x
 
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <number of nodes> <setup job>"

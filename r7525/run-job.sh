@@ -1,5 +1,5 @@
 #!bin/bash
-set -ex
+set -x
 
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <setup job>"

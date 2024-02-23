@@ -41,7 +41,7 @@ for job in toy; do
 				git clone https://github.com/mfdj2002/Megatron-LM.git
 			fi
 			cd Megatron-LM/r7525 && \
-			bash gen-ssh-key.sh && \
+			bash gen-ssh-keys.sh && \
 			bash start-remote-job.sh '$job' && \
 			bash run-job.sh '$job'
 			"
