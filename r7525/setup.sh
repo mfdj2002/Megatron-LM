@@ -42,7 +42,7 @@ for job in toy; do
 			fi
 			cd Megatron-LM/r7525 && \
 			bash gen-ssh-keys.sh && \
-			bash start-remote-job.sh '$job' && \
+			bash start-remote-job.sh '$nnodes' '$job' && \
 			bash run-job.sh '$job'
 			"
 		status=$?
