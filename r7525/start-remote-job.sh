@@ -19,22 +19,26 @@ for ((n = 0; n <= $NNODES; n++)); do
         echo "Trying to SSH into node $n for job $JOB..."
         ssh node$n.$addr_suffix \
             "
-            if [[ ! -d \"Megatron-LM\" ]]; then
-            sudo apt-get update && sudo apt-get install -y git && \
-            git clone https://github.com/mfdj2002/Megatron-LM.git
+            if [ -f '$WORKDIR'/logs/'$JOB'.log ]; then
+                echo \"job $JOB already executed on node '$n'.\"
+            else
+                if [[ ! -d \"Megatron-LM\" ]]; then
+                    sudo apt-get update && sudo apt-get install -y git &&
+                        git clone https://github.com/mfdj2002/Megatron-LM.git
+                fi
+                cd '$WORKDIR' &&
+                    mkdir -p logs &&
+                    nohup bash '$JOB'.sh >logs/'$JOB'.log 2>&1 &
             fi
-            cd $WORKDIR && \
-            mkdir -p logs && \
-            nohup bash '$JOB'.sh >logs/'$JOB'.log 2>&1 &
             "
 
         status=$?
 
         if [ $status -eq 0 ]; then
             echo "SSH connection to master node successful."
-            break
         else
             echo "SSH connection failed. Status: $status."
+            exit 1
         fi
     fi
 done
