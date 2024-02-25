@@ -41,7 +41,7 @@ parameter="intel_iommu="$status
 grub_file="/etc/default/grub"
 
 if dmesg | grep iommu | grep -q "amd"; then
-  parameter="amd_iommu="$status
+	parameter="amd_iommu="$status
 fi
 
 echo "Adding booting parameter ${parameter} to ${grub_file}"
@@ -70,10 +70,10 @@ group=$(id -gn)
 sudo chown -R $USER:$group $MNT_DIR
 
 for dir in .vscode-server .debug .cache .local logs tmp; do
-  sudo mkdir -p $MNT_DIR/$dir
-  sudo chown -R $USER:$group $MNT_DIR/$dir
-  rm -rf ~/$dir
-  ln -s $MNT_DIR/$dir ~/$dir
+	sudo mkdir -p $MNT_DIR/$dir
+	sudo chown -R $USER:$group $MNT_DIR/$dir
+	rm -rf ~/$dir
+	ln -s $MNT_DIR/$dir ~/$dir
 done
 
 ##############################################################################
@@ -85,23 +85,23 @@ sudo apt update && sudo apt install docker.io -y
 
 # Check if the docker group exists
 if ! getent group docker >/dev/null; then
-  echo "Adding docker group..."
-  sudo groupadd docker
+	echo "Adding docker group..."
+	sudo groupadd docker
 else
-  echo "Docker group already exists."
+	echo "Docker group already exists."
 fi
 
 # Check if the current user is already a member of the docker group
 if ! id -nG "$USER" | grep -qw docker; then
-  echo "Adding $USER to the docker group..."
-  sudo usermod -aG docker "$USER"
+	echo "Adding $USER to the docker group..."
+	sudo usermod -aG docker "$USER"
 else
-  echo "$USER is already a member of the docker group."
+	echo "$USER is already a member of the docker group."
 fi
 
 distribution=$(
-  . /etc/os-release
-  echo $ID$VERSION_ID
+	. /etc/os-release
+	echo $ID$VERSION_ID
 )
 curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
@@ -111,9 +111,9 @@ sudo systemctl restart docker
 # Move Docker data directory to /mnt/docker
 sudo systemctl stop docker
 if [ ! -d "/mnt/docker" ]; then
-  sudo mv /var/lib/docker /mnt/docker
+	sudo mv /var/lib/docker /mnt/docker
 else
-  echo "/mnt/docker already exists, skipping move."
+	echo "/mnt/docker already exists, skipping move."
 fi
 # sudo systemctl start docker
 
@@ -126,7 +126,7 @@ sudo apt update && sudo apt install -y jq
 
 # Ensure the file exists and is none empty
 if [ ! -s "$CONFIG_FILE" ]; then
-  echo "{}" | sudo tee "$CONFIG_FILE" >/dev/null
+	echo "{}" | sudo tee "$CONFIG_FILE" >/dev/null
 fi
 
 # Use jq to modify the file (example: set "data-root" and enable "experimental" features and BuildKit)
