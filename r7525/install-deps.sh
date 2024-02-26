@@ -5,7 +5,7 @@ MNT_DIR=/mnt
 DEVICE="/dev/sda4"
 
 # Check if the device is already mounted
-if findmnt -rn $DEVICE $MNT_DIR >/dev/null; then
+if findmnt -rn -S $DEVICE -T $MNT_DIR >/dev/null; then
     echo "Device is already mounted."
 else
     # Attempt to mount the device
@@ -41,7 +41,7 @@ cd $STAGE_DIR &&
 
 cd $STAGE_DIR &&
     wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run &&
-    sudo sh cuda_12.1.0_530.30.02_linux.run --installpath=/mnt/cuda --tmpdir=/mnt/tmp -silent &&
+    sudo sh cuda_12.1.0_530.30.02_linux.run --installpath=/mnt/cuda --tmpdir=/mnt/tmp --silent &&
     rm cuda_12.1.0_530.30.02_linux.run &&
     sudo dkms autoinstall && sudo modprobe nvidia &&
     sudo modprobe nvidia-peermem && sudo reboot

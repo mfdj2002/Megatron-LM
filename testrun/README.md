@@ -200,3 +200,94 @@ args known to reduce efficiency:
 irrelevant for gpt: group.add_argument('--pipeline-model-parallel-split-rank',
                        type=int, default=None,
                        help='Rank where encoder and decoder should be split.')
+
+
+
+
+
+
+
+from megatron/core/parallel_state.py:
+
+
+        tensor_model_parallel_size (int, default = 1):
+            The number of GPUs to split individual tensors across.
+
+        pipeline_model_parallel_size (int, default = 1):
+            The number of tensor parallel GPU groups to split the
+            Transformer layers across. For example, if
+            tensor_model_parallel_size is 4 and
+            pipeline_model_parallel_size is 2, the model will be split
+            into 2 groups of 4 GPUs.
+
+        virtual_pipeline_model_parallel_size (int, optional):
+            The number of stages that each pipeline group will have,
+            interleaving as necessary. If None, no interleaving is
+            performed. For example, if tensor_model_parallel_size is 1,
+            pipeline_model_parallel_size is 4,
+            virtual_pipeline_model_parallel_size is 2, and there are
+            16 transformer layers in the model, the model will be
+            split into 8 stages with two layers each and each GPU
+            would get 2 stages as such (layer number starting with 1):
+
+            GPU 0: [1, 2] [9, 10]
+            GPU 1: [3, 4] [11, 12]
+            GPU 2: [5, 6] [13, 14]
+            GPU 3: [7, 8] [15, 16]
+
+        pipeline_model_parallel_split_rank (int, optional):
+            For models with both an encoder and decoder, the rank in
+            pipeline to switch between encoder and decoder (i.e. the
+            first rank of the decoder). This allows the user to set
+            the pipeline parallel size of the encoder and decoder
+            independently. For example, if
+            pipeline_model_parallel_size is 8 and
+            pipeline_model_parallel_split_rank is 3, then ranks 0-2
+            will be the encoder and ranks 3-7 will be the decoder.
+
+        use_sharp (bool, default = False):
+            Set the use of SHARP for the collective communications of
+            data-parallel process groups. When `True`, run barrier
+            within each data-parallel process group, which specifies
+            the SHARP application target groups.
+
+        context_parallel_size (int, default = 1):
+            The number of tensor parallel GPU groups to split the
+            network input sequence length across. Compute of attention
+            module requires tokens of full sequence length, so GPUs
+            in a context parallel group need to communicate with each
+            other to exchange information of other sequence chunks.
+            Each GPU and its counterparts in other tensor parallel
+            groups compose a context parallel group.
+
+            For example, assume we have 8 GPUs, if tensor model parallel
+            size is 4 and context parallel size is 2, the network input
+            will be split into two sequence chunks, which are processed
+            by 2 different groups of 4 GPUs. One chunk is processed by
+            GPU0-3, the other chunk is processed by GPU4-7. Four groups
+            are build to do context parallel communications: [GPU0, GPU4],
+            [GPU1, GPU5], [GPU2, GPU6], and [GPU3, GPU7].
+
+            Context parallelism partitions sequence length, so it has no
+            impact on weights, which means weights are duplicated among
+            GPUs in a context parallel group. Hence, weight gradients
+            all-reduce is required in backward. For simplicity, we piggyback
+            GPUs of context parallelism on data parallel group for
+            weight gradient all-reduce.
+
+
+    Let's say we have a total of 16 GPUs denoted by g0 ... g15 and we
+    use 2 GPUs to parallelize the model tensor, and 4 GPUs to parallelize
+    the model pipeline. The present function will
+    create 8 tensor model-parallel groups, 4 pipeline model-parallel groups
+    and 8 data-parallel groups as:
+        8 data_parallel groups:
+            [g0, g2], [g1, g3], [g4, g6], [g5, g7], [g8, g10], [g9, g11], [g12, g14], [g13, g15]
+        8 tensor model-parallel groups:
+            [g0, g1], [g2, g3], [g4, g5], [g6, g7], [g8, g9], [g10, g11], [g12, g13], [g14, g15]
+        4 pipeline model-parallel groups:
+            [g0, g4, g8, g12], [g1, g5, g9, g13], [g2, g6, g10, g14], [g3, g7, g11, g15]
+    Note that for efficiency, the caller should make sure adjacent ranks
+    are on the same DGX box. For example if we are using 2 DGX-1 boxes
+    with a total of 16 GPUs, rank 0 to 7 belong to the first box and
+    ranks 8 to 15 belong to the second box.
