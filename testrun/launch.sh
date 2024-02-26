@@ -1,8 +1,12 @@
 #!/bin/bash
 
-# image_name=$1 #mfdj2002/mds:r7525
-
+# image_name=$1 #mfdj2002/mds:latest
+sudo systemctl stop docker
+sudo mount /dev/sda4 /mnt #for r7525
+sudo systemctl start docker
 sudo modprobe nvidia-peermem
+
+sudo mkdir -p /mnt/logs
 
 # Check if the Docker image exists
 image_exists=$(docker images -q $IMAGE_NAME)
@@ -15,6 +19,6 @@ fi
 
 # Run the Docker image
 echo "Running $IMAGE_NAME..."
-docker run --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
-  -e GPUS_PER_NODE=$GPUS_PER_NODE -e WORLD_SIZE=$WORLD_SIZE -e MASTER_ADDR=$MASTER_ADDR -e MASTER_PORT=$MASTER_PORT -e NNODES=$NNODES -e NODE_RANK=$NODE_RANK \
+docker run --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+  --env-file env.list \
   -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt -v /mnt/logs:/logs $IMAGE_NAME

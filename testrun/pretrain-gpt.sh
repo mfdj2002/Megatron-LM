@@ -1,8 +1,10 @@
 #!/bin/bash
 
+cd $WORKDIR
+
 # Runs the "345M" parameter model
 #export NCCL_P2P_DISABLE=1
-export CUDA_DEVICE_MAX_CONNECTIONS=1
+export CUDA_DEVICE_MAX_CONNECTIONS=1 #?????
 
 # GPUS_PER_NODE=2
 # # Change for multinode config
@@ -17,7 +19,7 @@ VOCAB_FILE=testrun/gpt2-vocab.json
 MERGE_FILE=testrun/gpt2-merges.txt
 DATA_PATH=testrun/dataset/pile_gpt_train_text_document
 
-DISTRIBUTED_ARGS="
+TORCHRUN_ARGS="
     --nproc_per_node $GPUS_PER_NODE \
     --nnodes $NNODES \
     --node_rank $NODE_RANK \
@@ -58,10 +60,11 @@ OUTPUT_ARGS="
     --eval-iters 10
 "
 
-torchrun $DISTRIBUTED_ARGS pretrain_gpt.py \
+torchrun $TORCHRUN_ARGS pretrain_gpt.py \
     $GPT_ARGS \
     $DATA_ARGS \
     $OUTPUT_ARGS \
     --distributed-backend nccl \
-    --save $CHECKPOINT_PATH
+    --save $CHECKPOINT_PATH \
+    >$WORKDIR/logs/gpt2_345m.log 2>&1
 # --load $CHECKPOINT_PATH

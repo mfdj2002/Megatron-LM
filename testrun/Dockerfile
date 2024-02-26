@@ -7,6 +7,6 @@ RUN pip install --no-cache-dir transformers==4.30.0 \
     && python -c "import deepspeed; print(deepspeed.__version__)" \
     && python -c "import transformers; print(transformers.__version__)"
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
+COPY pretrain-gpt.sh /pretrain-gpt.sh
+RUN chmod +x /pretrain-gpt.sh
+ENTRYPOINT ["/pretrain-gpt.sh"]

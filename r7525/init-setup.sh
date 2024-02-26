@@ -1,26 +1,5 @@
 #!/bin/bash
 set -ex
-
-##############################################################################
-# generate ssh keys
-##############################################################################
-
-# # Create the user SSH directory, just in case.
-# mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh
-
-# # Retrieve the server-generated RSA private key.
-# geni-get key > $HOME/.ssh/id_rsa
-# chmod 600 $HOME/.ssh/id_rsa
-
-# # Derive the corresponding public key portion.
-# ssh-keygen -y -f $HOME/.ssh/id_rsa > $HOME/.ssh/id_rsa.pub
-
-# # If you want to permit login authenticated by the auto-generated key,
-# # then append the public half to the authorized_keys2 file:
-# touch $HOME/.ssh/authorized_keys2
-
-# grep -q -f $HOME/.ssh/id_rsa.pub $HOME/.ssh/authorized_keys2 || cat $HOME/.ssh/id_rsa.pub >> $HOME/.ssh/authorized_keys2
-
 ##############################################################################
 # disable nouveau
 ##############################################################################
@@ -59,17 +38,18 @@ sudo update-grub
 ##############################################################################
 
 MNT_DIR=/mnt
+DEVICE="/dev/sda4"
 
 # sudo mkfs.ext4 /dev/sdb #will be quite different if on a different machine
-sudo mkfs.ext4 /dev/sda4
+sudo mkfs.ext4 $DEVICE
 # # sudo mount /dev/sdb /mnt
-sudo mount /dev/sda4 $MNT_DIR #for r7525
+sudo mount $DEVICE $MNT_DIR #for r7525
 
 group=$(id -gn)
 
 sudo chown -R $USER:$group $MNT_DIR
 
-for dir in .vscode-server .debug .cache .local logs tmp; do
+for dir in .vscode-server .debug .cache .local; do
 	sudo mkdir -p $MNT_DIR/$dir
 	sudo chown -R $USER:$group $MNT_DIR/$dir
 	rm -rf ~/$dir
@@ -115,13 +95,11 @@ if [ ! -d "/mnt/docker" ]; then
 else
 	echo "/mnt/docker already exists, skipping move."
 fi
-# sudo systemctl start docker
 
 CONFIG_FILE="/etc/docker/daemon.json"
 TEMP_FILE=$(sudo mktemp)
 
 # Ensure the Docker service is stopped before modifying the daemon.json
-# sudo systemctl stop docker
 sudo apt update && sudo apt install -y jq
 
 # Ensure the file exists and is none empty

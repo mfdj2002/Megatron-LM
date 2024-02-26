@@ -1,0 +1,25 @@
+{
+    "overlap_settings": {
+        "enable_overlap": true,
+        "operations": [
+            {
+                "type": "all_gather",
+                "stages": ["forward", "backward"],
+                "priority": 1
+            },
+            {
+                "type": "reduce_scatter",
+                "stages": ["backward"],
+                "priority": 2
+            }
+        ],
+        "scheduling": {
+            "type": "priority_based",
+            "preemption": false
+        }
+    },
+    "hardware_constraints": {
+        "max_concurrent_operations": 2,
+        "preferred_gpu": "any"
+    }
+}
