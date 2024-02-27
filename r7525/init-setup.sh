@@ -49,7 +49,7 @@ group=$(id -gn)
 
 sudo chown -R $USER:$group $MNT_DIR
 
-for dir in .vscode-server .debug .cache .local; do
+for dir in .vscode-server .debug .cache .local; do #tmp logs?
 	sudo mkdir -p $MNT_DIR/$dir
 	sudo chown -R $USER:$group $MNT_DIR/$dir
 	rm -rf ~/$dir

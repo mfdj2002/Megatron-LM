@@ -9,16 +9,15 @@ set -x
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
 
-IMAGE_NAME="mfdj2002/mds:latest"
-HOSTFILE="../hostfile.txt"
-
-WORKDIR="/workspace/Megatron-LM"
+export WORKDIR="/workspace/Megatron-LM"
+export HOSTFILE="../hostfile.txt"
 LOGDIR="/logs"
+IMAGE_NAME="mfdj2002/mds:latest"
 
 MAX_RUNTIME_PER_EXPERIMENT=10 #minutes
 
 NNODES=$(wc -l <"$HOSTFILE")
-GPUS_PER_NODE=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)
+GPUS_PER_NODE=2
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
 MASTER_PORT=6000
@@ -44,18 +43,19 @@ powers_of_two() {
 }
 
 FIXED_ARGS="
---use-cpu-initialization,
---recompute-activations,
---distribute-saved-activations,
---recompute-method=uniform,
---use-flash-attn,
---use-mcore-models,
+--use-cpu-initialization \
+--recompute-activations \
+--distribute-saved-activations \
+--recompute-method=uniform \
+--use-flash-attn \
+--use-mcore-models \
 
---use-distributed-optimizer,
---overlap-grad-reduce,
---overlap-param-gather,
+--use-distributed-optimizer \
+--overlap-grad-reduce \
+--overlap-param-gather \
 
---no-delay-grad-reduce
+--no-delay-grad-reduce \
+--empty-unused-memory-level=1
 "
 
 TORCHRUN_ARGS="
@@ -88,7 +88,7 @@ DATA_ARGS="
     --data-path $DATA_PATH \
     --vocab-file $VOCAB_FILE \
     --merge-file $MERGE_FILE \
-    --split 949,50,1 \
+    --split 949,50,1
 "
 
 OUTPUT_ARGS="
@@ -102,22 +102,65 @@ PROFILING_ARGS="
     --exit-duration-in-mins $MAX_RUNTIME_PER_EXPERIMENT
 "
 
-set_distributed_args() {
-    for arg in "WORKDIR" "LOGDIR" "RUN_UID" "FIXED_ARGS" "SEARCH_ARGS" "TORCHRUN_ARGS" "GPT_ARGS" "DATA_ARGS" "OUTPUT_ARGS" "PROFILING_ARGS"; do
-        # Append the export command for each environment variable to the file
-        echo "export $arg='$1' && \\" >>$LOGDIR/$RUN_UID/configs.env
+set_config() {
+    # Ensure the directory exists
+    mkdir -p "$LOGDIR/$RUN_UID"
+
+    # Append each environment variable to the file
+    for arg in WORKDIR LOGDIR RUN_UID FIXED_ARGS SEARCH_ARGS TORCHRUN_ARGS GPT_ARGS DATA_ARGS OUTPUT_ARGS PROFILING_ARGS; do
+        if [ -n "${!arg}" ]; then # Check if the variable is set and not empty
+            echo "export $arg='${!arg}' && \\" >>"$LOGDIR/$RUN_UID/configs.env"
+        fi
     done
 }
+
+SEARCH_ARGS=""
 
 # Main search loop with boolean parameters included
 for context_size in $(powers_of_two $WORLD_SIZE); do
     for pipeline_size in $(powers_of_two $WORLD_SIZE); do
         for tensor_size in $(powers_of_two $WORLD_SIZE); do
-            for virtual_stages in $(powers_of_two $NUM_LAYERS); do
+            for layers_per_virtual_stage in $(powers_of_two $NUM_LAYERS); do
                 for sequence_parallel in 0 1; do
                     for no_clone_scatter_output_in_embedding in 0 1; do
-                        RUN_UID=$(date +%Y%m%d%H%M%S)
-                        set_distributed_args
+                        if [ $((context_size * pipeline_size * tensor_size)) -le $WORLD_SIZE ]; then
+                            # Check if the combination fits the layers constraint
+                            if [ $virtual_stages -gt 1]; then
+                                if [ $pipeline_size -gt 2]; then
+                                    if [ $((virtual_stages * pipeline_size)) -le $NUM_LAYERS ]; then
+                                        RUN_UID=$(date +%Y%m%d%H%M%S)
+                                        SEARCH_ARGS+="
+                                            --context-parallel-size $context_size \
+                                            --pipeline-model-parallel-size $pipeline_size \
+                                            --tensor-model-parallel-size $tensor_size \
+                                            --num-layers-per-virtual-pipeline-stage $layers_per_virtual_stage
+                                            "
+                                        if [ $sequence_parallel -eq 1 ]; then
+                                            SEARCH_ARGS+="--sequence-parallel"
+                                        fi
+                                        if [ $no_clone_scatter_output_in_embedding -eq 1]; then
+                                            SEARCH_ARGS+="--no-clone-scatter-output-in-embedding"
+                                        fi
+                                        set_config
+                                    fi
+                                fi
+                            else #dont set virtual stages argument..
+                                RUN_UID=$(date +%Y%m%d%H%M%S)
+                                SEARCH_ARGS+="
+                                            --context-parallel-size $context_size \
+                                            --pipeline-model-parallel-size $pipeline_size \
+                                            --tensor-model-parallel-size $tensor_size
+                                            "
+                                if [ $sequence_parallel -eq 1 ]; then
+                                    SEARCH_ARGS+="--sequence-parallel"
+                                fi
+                                if [ $no_clone_scatter_output_in_embedding -eq 1]; then
+                                    SEARCH_ARGS+="--no-clone-scatter-output-in-embedding"
+                                fi
+                                set_config
+                            fi
+                        fi
+
                     done
                 done
             done
@@ -125,42 +168,30 @@ for context_size in $(powers_of_two $WORLD_SIZE); do
     done
 done
 
-## Check if the combination is within the device limit
-# if [ $((context_size * pipeline_size * tensor_size)) -le $WORLD_SIZE ]; then
-#                             # Check if the combination fits the layers constraint
-#                             if [ $virtual_stages -gt 1]; then
-#                                 if [ $pipeline_size -gt 2]; then
-#                                     if [ $((virtual_stages * pipeline_size)) -le $NUM_LAYERS ]; then
+# # Check if the combination is within the device limit
 
-#                                         echo "Context: $context_size, Pipeline: $pipeline_size, Tensor: $tensor_size, Stages: $virtual_stages, AdvOpt: $advanced_optimization, SpecMode: $special_mode"
-#                                     fi
-#                                 fi
-#                             else #dont set virtual stages argument..
-#                             fi
-#                         fi
-
-while IFS= read -r addr; do
-    ssh -n "$addr" \
-        "
-        export NNODES='$NNODES' && \
-        export WORKDIR='$WORKDIR' && \
-        export GPUS_PER_NODE='$GPUS_PER_NODE' && \
-        export WORLD_SIZE='$WORLD_SIZE' && \
-        export MASTER_ADDR='$MASTER_ADDR' && \
-        export MASTER_PORT='$MASTER_PORT' && \
-        export NODE_RANK='$server_counter' && \
-        cd $WORKDIR && \
-        nohup bash '$JOB'.sh </dev/null &
-        exit 0
-        "
-    status=$?
-    if [ $status -eq 0 ]; then
-        echo "Starting '$JOB' to node $addr successful."
-    else
-        echo "Starting '$JOB' on node $addr failed. Status: $status."
-    fi
-    server_counter=$((server_counter + 1))
-done <"$HOSTFILE"
+# while IFS= read -r addr; do
+#     ssh -n "$addr" \
+#         "
+#         export NNODES='$NNODES' && \
+#         export WORKDIR='$WORKDIR' && \
+#         export GPUS_PER_NODE='$GPUS_PER_NODE' && \
+#         export WORLD_SIZE='$WORLD_SIZE' && \
+#         export MASTER_ADDR='$MASTER_ADDR' && \
+#         export MASTER_PORT='$MASTER_PORT' && \
+#         export NODE_RANK='$server_counter' && \
+#         cd $WORKDIR && \
+#         nohup bash '$JOB'.sh </dev/null &
+#         exit 0
+#         "
+#     status=$?
+#     if [ $status -eq 0 ]; then
+#         echo "Starting '$JOB' to node $addr successful."
+#     else
+#         echo "Starting '$JOB' on node $addr failed. Status: $status."
+#     fi
+#     server_counter=$((server_counter + 1))
+# done <"$HOSTFILE"
 
 eval $(ssh-agent -k)
 
