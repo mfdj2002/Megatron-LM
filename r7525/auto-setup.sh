@@ -1,11 +1,6 @@
 #!bin/bash
 set -x
 
-# if [ $# -lt 2 ]; then
-# 	echo "Usage: $0 <master node address> <number of nodes>"
-# 	exit 1
-# fi
-
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
 
@@ -21,7 +16,8 @@ RETRY_DELAY=60
 jobs=("init-setup" "install-deps")
 total_jobs=${#jobs[@]}
 
-for job in "${jobs[@]}"; do
+for i in "${!jobs[@]}"; do
+	job=${jobs[$i]}
 	while IFS= read -r addr; do
 		attempt=1
 		while [ $attempt -le $MAX_ATTEMPTS ]; do
@@ -32,20 +28,19 @@ for job in "${jobs[@]}"; do
 			echo "Attempt $attempt of $MAX_ATTEMPTS: Trying to SSH into node $addr for job $job..."
 			ssh -n "$addr" \
 				"
-				export WORK_DIR='$WORKDIR' && \
-				if [[ ! -d \"Megatron-LM\" ]]; then
-					sudo apt-get update && sudo apt-get install -y git && \
-					git clone https://github.com/mfdj2002/Megatron-LM.git
-				fi
-				cd '$WORKDIR' && \
-				mkdir -p setup-logs && \
-				if [ -f setup-logs/'$job'.log ]; then
-					echo \"job '$job' already executed on node '$addr'.\"
-				else
-					nohup bash '$job'.sh >setup-logs/'$job'.log 2>&1 </dev/null &
-        			exit 0
-				fi
-				"
+                if [[ ! -d \"Megatron-LM\" ]]; then
+                sudo apt-get update && sudo apt-get install -y git && \
+                git clone https://github.com/mfdj2002/Megatron-LM.git
+                fi
+                cd '$WORKDIR' && \
+                mkdir -p setup-logs && \
+                if [ -f setup-logs/'$job'.log ]; then
+                echo \"job '$job' already executed on node '$addr'.\"
+                else
+                nohup bash '$job'.sh >setup-logs/'$job'.log 2>&1 </dev/null &
+                exit 0
+                fi
+                "
 			status=$?
 			if [ $status -eq 0 ]; then
 				echo "SSH connection to node $addr successful."
@@ -58,13 +53,13 @@ for job in "${jobs[@]}"; do
 		if [ $attempt -gt $MAX_ATTEMPTS ]; then
 			echo "Reached maximum number of retries. Giving up."
 		else
-			echo "Job $job completed successfully."
+			echo "Job $job sent successfully."
 		fi
 	done <"$HOSTFILE"
-	if [ $current_job -lt $total_jobs ]; then
+	# Check if not last job then sleep
+	if [[ $i -lt $((total_jobs - 1)) ]]; then
 		sleep 300
 	fi
-	((current_job++))
 done
 
 eval $(ssh-agent -k)
