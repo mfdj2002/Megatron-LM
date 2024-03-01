@@ -4,7 +4,7 @@ cd $WORKDIR
 
 # Runs the "345M" parameter model
 #export NCCL_P2P_DISABLE=1
-export CUDA_DEVICE_MAX_CONNECTIONS=1 #?????
+export CUDA_DEVICE_MAX_CONNECTIONS=1
 # if os.environ.get('CUDA_DEVICE_MAX_CONNECTIONS') != "1":
 #     if args.sequence_parallel:
 #         raise RuntimeError(

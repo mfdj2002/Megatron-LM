@@ -2,12 +2,6 @@ FROM nvcr.io/nvidia/pytorch:23.04-py3
 
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends git && \
-    git clone https://github.com/scottchiefbaker/dool && \
-    cd dool && \
-    python install.py && \
-    dool --version
-
 RUN pip install --no-cache-dir transformers==4.30.0 \
     && pip install --no-cache-dir deepspeed==0.13.0 \
     && python -c "import deepspeed; print(deepspeed.__version__)" \

@@ -8,24 +8,31 @@ eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
 
 WORKDIR="/workspace/Megatron-LM"
-HOSTFILE="../hostfile.txt"
+# HOSTFILE="../hostfile.txt"
 LOGDIR="/mnt/logs"
 IMAGE_NAME="mfdj2002/mds:latest"
 
-ORCHESTRATOR_HOSTNAME=$(hostname)
-ADDR_SUFFIX="${ORCHESTRATOR_HOSTNAME#*.}"
-
-ORCHESTRATOR_LOGDIR="$HOME/orchestrator_logs-at-${ORCHESTRATOR_HOSTNAME}"
-
 MAX_RUNTIME_PER_EXPERIMENT=5 #minutes
 
-NNODES=$(wc -l <"$HOSTFILE")
+
+if [ -z "$NNODES" ] || [ -z "$GPUS_PER_NODE" ]; then
+  echo "Error: NNODES and GPUS_PER_NODE are required."
+  exit -1
+fi
+#assumes master is also orchestrator
+
+# # NNODES=$(wc -l <"$HOSTFILE")
 # NNODES=4
-GPUS_PER_NODE=2
+# # NNODES=4
+# GPUS_PER_NODE=2
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
-MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
+# MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
+MASTER_ADDR=$(hostname)
 # MASTER_ADDR="0.0.0.0"
 MASTER_PORT=6000
+
+ADDR_SUFFIX="${MASTER_ADDR#*.}"
+ORCHESTRATOR_LOGDIR="$LOGDIR/orchestrator_logs"
 
 NUM_LAYERS=24
 MICRO_BATCH_SIZE=1
@@ -131,7 +138,8 @@ launch() {
         -o $LOGDIR/$RUNNAME/nsys-profile-rank${NODE_RANK} \
         -f true -x true
         "
-    while IFS= read -r addr; do
+    # while IFS= read -r addr; do
+    for ((n = 0; n < $NNODES; n++)); do
         docker_cmd="docker run"
         for var in "${env_vars[@]}"; do
             docker_cmd+=" -e $var=\"${!var}\""
@@ -139,7 +147,10 @@ launch() {
         docker_cmd+=" --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt --rm $IMAGE_NAME"
 
         echo $docker_cmd > $ORCHESTRATOR_LOGDIR/$RUNNAME/master_docker_command.txt
+        addr=node$n.$ADDR_SUFFIX
+
         # Execute the SSH command in the background
+        ssh-keyscan -H "$addr" >>~/.ssh/known_hosts
         ssh -n "$addr" \
             "
             mkdir -p $LOGDIR/$RUNNAME
@@ -166,19 +177,16 @@ launch() {
             fi
                 
         " >$ORCHESTRATOR_LOGDIR/$RUNNAME/ssh_node$NODE_RANK.log 2>&1 &
-
-
         
         pids+=("$!")
         NODE_RANK=$((NODE_RANK + 1))
-    done <"$HOSTFILE"
+    done
 
     local failure_flag=0
     for idx in "${!pids[@]}"; do
         pid=${pids[$idx]}
         if ! wait "$pid"; then
-            addr=$(awk "NR==$((idx + 1))" "$HOSTFILE")
-            echo "Subprocess with address $addr in RUN $RUNNAME failed."
+            echo "Node $NODE_RANK in RUN $RUNNAME failed."
             failure_flag=1
         fi
     done
@@ -301,8 +309,6 @@ for cpu_init in 0 1; do
                                                     RUNNAME+="_cpuinit"
                                                 fi
                                                 launch
-                                                sleep 0.1
-                                                # count=$((count + 1))
                                             fi
                                         fi
                                     else #dont set virtual stages argument..
@@ -320,11 +326,7 @@ for cpu_init in 0 1; do
                                             SEARCH_ARGS+=" --use-cpu-initialization"
                                             RUNNAME+="_cpuinit"
                                         fi
-                                        # set_configs
-                                        # sleep 1
-                                        # count=$((count + 1))
                                         launch
-                                        sleep 0.1
                                     fi
                                 fi
                             done
@@ -336,9 +338,7 @@ for cpu_init in 0 1; do
     done
 done
 
-echo $count
-
-# eval $(ssh-agent -k)
+eval $(ssh-agent -k)
 
 ## GPT-3 Small 125M
 # model_size=0.125
