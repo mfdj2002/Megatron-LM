@@ -2,8 +2,6 @@
 
 # grid search over common hyperparameters/parallelization strategies
 
-#first create a new directory for each run
-#!/bin/bash
 set -x
 
 eval $(ssh-agent -s)
@@ -14,13 +12,19 @@ HOSTFILE="../hostfile.txt"
 LOGDIR="/mnt/logs"
 IMAGE_NAME="mfdj2002/mds:latest"
 
-MAX_PROFILE_TIME_PER_EXPERIMENT=4.5 #minutes
-MAX_RUNTIME_PER_EXPERIMENT=5        #minutes
+ORCHESTRATOR_HOSTNAME=$(hostname)
+ADDR_SUFFIX="${ORCHESTRATOR_HOSTNAME#*.}"
+
+ORCHESTRATOR_LOGDIR="$HOME/orchestrator_logs-at-${ORCHESTRATOR_HOSTNAME}"
+
+MAX_RUNTIME_PER_EXPERIMENT=5 #minutes
 
 NNODES=$(wc -l <"$HOSTFILE")
+# NNODES=4
 GPUS_PER_NODE=2
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
+# MASTER_ADDR="0.0.0.0"
 MASTER_PORT=6000
 
 NUM_LAYERS=24
@@ -57,16 +61,9 @@ FIXED_ARGS="
 --no-delay-grad-reduce \
 --empty-unused-memory-level=1 \
 
---exit-duration-in-mins $MAX_PROFILE_TIME_PER_EXPERIMENT
+--exit-duration-in-mins $MAX_RUNTIME_PER_EXPERIMENT
 "
 
-TORCHRUN_ARGS="
---nproc_per_node $GPUS_PER_NODE \
---nnodes $NNODES \
---node_rank $NODE_RANK \
---master_addr $MASTER_ADDR \
---master_port $MASTER_PORT
-"
 
 GPT_ARGS="
     --num-layers $NUM_LAYERS \
@@ -100,50 +97,78 @@ OUTPUT_ARGS="
     --eval-iters 10
 "
 
-NSYS_CMD="
-nsys profile -w true \
--t cuda,nvtx,osrt,cudnn,cublas \
--s none \
--o $LOGDIR/$RUN_UID/nsys-profile-rank${NODE_RANK} \
--f true -x true
-"
 
-set_configs() {
-    # Ensure the directory exists
-    # mkdir -p "$LOGDIR/$RUN_UID"
 
-    for arg in WORKDIR LOGDIR RUN_UID USE_NSYS NODE_RANK FIXED_ARGS SEARCH_ARGS TORCHRUN_ARGS GPT_ARGS DATA_ARGS OUTPUT_ARGS; do
-        if [ -n "${!arg}" ]; then # Check if the variable is set and not empty
-            echo "$arg='${!arg}'" | sed 's/^[ \t]*//'
-        fi
-    done
-}
+# set_configs() {
+#     # Ensure the directory exists
+#     mkdir -p "test_configs/$RUN_UID"
+
+#     for arg in WORKDIR LOGDIR RUN_UID USE_NSYS NSYS_CMD NODE_RANK FIXED_ARGS SEARCH_ARGS TORCHRUN_ARGS GPT_ARGS DATA_ARGS OUTPUT_ARGS; do
+#         if [ -n "${!arg}" ]; then # Check if the variable is set and not empty
+#             echo "$arg='${!arg}'" | sed 's/^[ \t]*//' >>"test_configs/$RUN_UID/configs.env"
+#         fi
+#     done
+# }
+
+
+env_vars=("WORKDIR" "LOGDIR" "RUNNAME" "USE_NSYS" "NSYS_CMD" "NODE_RANK" "MAX_RUNTIME_PER_EXPERIMENT" "FIXED_ARGS" "SEARCH_ARGS" "TORCHRUN_ARGS" "GPT_ARGS" "DATA_ARGS" "OUTPUT_ARGS")
 
 launch() {
-    sudo mkdir -p orchestrator_logs/$RUN_UID
+    mkdir -p $ORCHESTRATOR_LOGDIR/$RUNNAME
     local pids=()
     NODE_RANK=0
+    TORCHRUN_ARGS="
+        --nproc_per_node $GPUS_PER_NODE \
+        --nnodes $NNODES \
+        --node_rank $NODE_RANK \
+        --master_addr $MASTER_ADDR \
+        --master_port $MASTER_PORT
+        "
+    NSYS_CMD="
+        nsys profile -w true \
+        -t cuda,nvtx,osrt,cudnn,cublas \
+        -s none \
+        -o $LOGDIR/$RUNNAME/nsys-profile-rank${NODE_RANK} \
+        -f true -x true
+        "
     while IFS= read -r addr; do
+        docker_cmd="docker run"
+        for var in "${env_vars[@]}"; do
+            docker_cmd+=" -e $var=\"${!var}\""
+        done
+        docker_cmd+=" --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt --rm $IMAGE_NAME"
+
+        echo $docker_cmd > $ORCHESTRATOR_LOGDIR/$RUNNAME/master_docker_command.txt
         # Execute the SSH command in the background
-        (set_configs | ssh "$addr" \
+        ssh -n "$addr" \
             "
+            mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
             sudo mount /dev/sda4 /mnt
             sudo systemctl start docker
             sudo modprobe nvidia-peermem
-            sudo mkdir -p $LOGDIR/$RUN_UID
-            cat >> $LOGDIR/$RUN_UID/configs.env
 
-            image_exists=\$(docker images -q $IMAGE_NAME)
-            if [[ -z \"\$image_exists\" ]]; then
+            if [[ -z \"\$(docker images -q $IMAGE_NAME)\" ]]; then
                 docker pull $IMAGE_NAME
             fi
 
-            timeout ${MAX_RUNTIME_PER_EXPERIMENT}m docker run --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
-                --env-file $LOGDIR/$RUN_UID/configs.env --stop-timeout 30\
-                -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt $IMAGE_NAME
-            " >orchestrator_logs/$RUN_UID/ssh_node$NODE_RANK.log 2>&1) &
+            if [ \"$USE_NSYS\" -eq 1 ]; then
+                nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 >"$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" &
+                nvidia_smi_pid=$!
+                dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
+                dool_pid=$!
+            fi
 
+            \$docker_cmd
+
+            if [ \"$USE_NSYS\" -eq 1 ]; then
+                kill $nvidia_smi_pid $dool_pid 2>/dev/null || true
+            fi
+                
+        " >$ORCHESTRATOR_LOGDIR/$RUNNAME/ssh_node$NODE_RANK.log 2>&1 &
+
+
+        
         pids+=("$!")
         NODE_RANK=$((NODE_RANK + 1))
     done <"$HOSTFILE"
@@ -153,7 +178,7 @@ launch() {
         pid=${pids[$idx]}
         if ! wait "$pid"; then
             addr=$(awk "NR==$((idx + 1))" "$HOSTFILE")
-            echo "Subprocess with address $addr in RUN $RUN_UID failed."
+            echo "Subprocess with address $addr in RUN $RUNNAME failed."
             failure_flag=1
         fi
     done
@@ -161,7 +186,7 @@ launch() {
     if [ "$failure_flag" -eq 1 ]; then
         return 1
     else
-        echo "All subprocesses completed successfully in RUN $RUN_UID."
+        echo "All subprocesses completed successfully in RUN $RUNNAME."
         return 0
     fi
 
@@ -244,50 +269,62 @@ launch() {
 #     done
 # }
 
-SEARCH_ARGS=""
 # Main search loop with boolean parameters included
-for context_size in $(powers_of_two $WORLD_SIZE); do
-    for pipeline_size in $(powers_of_two $WORLD_SIZE); do
+# count=0
+for cpu_init in 0 1; do
+    for USE_NSYS in 0 1; do
         for tensor_size in $(powers_of_two $WORLD_SIZE); do
-            for ((layers_per_virtual_stage = 1; layers_per_virtual_stage < $NUM_LAYERS; layers_per_virtual_stage++)); do
-                for sequence_parallel in 0 1; do
-                    for no_clone_scatter_output_in_embedding in 0 1; do
-                        for cpu_init in 0 1; do
-                            for USE_NSYS in 0 1; do
+            for pipeline_size in $(powers_of_two $WORLD_SIZE); do
+                for ((layers_per_virtual_stage = 1; layers_per_virtual_stage < $NUM_LAYERS; layers_per_virtual_stage++)); do
+                    for context_size in $(powers_of_two $WORLD_SIZE); do
+                        for sequence_parallel in 0 1; do
+                            for no_clone_scatter_output_in_embedding in 0 1; do
+                                SEARCH_ARGS=""
+                                RUNNAME="$(date +%m%d%H)_"
                                 if [ $((context_size * pipeline_size * tensor_size)) -le $WORLD_SIZE ]; then
                                     # Check if the combination fits the layers constraint
-                                    if [ $virtual_stages -gt 1]; then
-                                        if [ $pipeline_size -gt 2]; then
-                                            if [ $((virtual_stages * pipeline_size)) -le $NUM_LAYERS ]; then
-                                                RUN_UID=$(date +%Y%m%d%H%M%S)
+                                    if [ $layers_per_virtual_stage -gt 1 ]; then
+                                        if [ $pipeline_size -gt 2 ]; then
+                                            if [ $((layers_per_virtual_stage * pipeline_size)) -le $NUM_LAYERS ]; then
                                                 SEARCH_ARGS+="--context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size --num-layers-per-virtual-pipeline-stage $layers_per_virtual_stage"
+                                                RUNNAME+="cp${context_size}-pp${pipeline_size}-tp${tensor_size}-lvpvs${layers_per_virtual_stage}"
                                                 if [ $sequence_parallel -eq 1 ]; then
-                                                    SEARCH_ARGS+="--sequence-parallel"
+                                                    SEARCH_ARGS+=" --sequence-parallel"
+                                                    RUNNAME+="_sp"
                                                 fi
-                                                if [ $no_clone_scatter_output_in_embedding -eq 1]; then
-                                                    SEARCH_ARGS+="--no-clone-scatter-output-in-embedding"
+                                                if [ $no_clone_scatter_output_in_embedding -eq 1 ]; then
+                                                    SEARCH_ARGS+=" --no-clone-scatter-output-in-embedding"
+                                                    RUNNAME+="_ncso"
                                                 fi
-                                                if [ $cpu_init -eq 1]; then
-                                                    SEARCH_ARGS+="--use-cpu-initialization"
+                                                if [ $cpu_init -eq 1 ]; then
+                                                    SEARCH_ARGS+=" --use-cpu-initialization"
+                                                    RUNNAME+="_cpuinit"
                                                 fi
                                                 launch
-                                                sleep 5
+                                                sleep 0.1
+                                                # count=$((count + 1))
                                             fi
                                         fi
                                     else #dont set virtual stages argument..
-                                        RUN_UID=$(date +%Y%m%d%H%M%S)
                                         SEARCH_ARGS+="--context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size"
+                                        RUNNAME+="cp${context_size}-pp${pipeline_size}-tp${tensor_size}"
                                         if [ $sequence_parallel -eq 1 ]; then
-                                            SEARCH_ARGS+="--sequence-parallel"
+                                            SEARCH_ARGS+=" --sequence-parallel"
+                                            RUNNAME+="_sp"
                                         fi
-                                        if [ $no_clone_scatter_output_in_embedding -eq 1]; then
-                                            SEARCH_ARGS+="--no-clone-scatter-output-in-embedding"
+                                        if [ $no_clone_scatter_output_in_embedding -eq 1 ]; then
+                                            SEARCH_ARGS+=" --no-clone-scatter-output-in-embedding"
+                                            RUNNAME+="_ncso"
                                         fi
-                                        if [ $cpu_init -eq 1]; then
-                                            SEARCH_ARGS+="--use-cpu-initialization"
+                                        if [ $cpu_init -eq 1 ]; then
+                                            SEARCH_ARGS+=" --use-cpu-initialization"
+                                            RUNNAME+="_cpuinit"
                                         fi
+                                        # set_configs
+                                        # sleep 1
+                                        # count=$((count + 1))
                                         launch
-                                        sleep 5
+                                        sleep 0.1
                                     fi
                                 fi
                             done
@@ -299,7 +336,9 @@ for context_size in $(powers_of_two $WORLD_SIZE); do
     done
 done
 
-eval $(ssh-agent -k)
+echo $count
+
+# eval $(ssh-agent -k)
 
 ## GPT-3 Small 125M
 # model_size=0.125
