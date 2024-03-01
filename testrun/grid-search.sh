@@ -9,12 +9,13 @@ set -x
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
 
-export WORKDIR="/workspace/Megatron-LM"
-export HOSTFILE="../hostfile.txt"
-LOGDIR="/logs"
+WORKDIR="/workspace/Megatron-LM"
+HOSTFILE="../hostfile.txt"
+LOGDIR="/mnt/logs"
 IMAGE_NAME="mfdj2002/mds:latest"
 
-MAX_RUNTIME_PER_EXPERIMENT=10 #minutes
+MAX_PROFILE_TIME_PER_EXPERIMENT=4.5 #minutes
+MAX_RUNTIME_PER_EXPERIMENT=5        #minutes
 
 NNODES=$(wc -l <"$HOSTFILE")
 GPUS_PER_NODE=2
@@ -30,24 +31,23 @@ VOCAB_FILE=testrun/gpt2-vocab.json
 MERGE_FILE=testrun/gpt2-merges.txt
 DATA_PATH=testrun/dataset/pile_gpt_train_text_document
 
-server_counter=0
-
 # Function to generate powers of two up to a maximum value
 powers_of_two() {
     local max_value=$1
     local n=1
-    while [ $n -le $max_value ]; do
+    while [ $n -lt $max_value ]; do #assuming using single strategy is suboptimal
         echo $n
         n=$((n * 2))
     done
 }
 
+#--use-flash-attn \
+#cannot use flash attention because only supported in A100 GPUs
+
 FIXED_ARGS="
---use-cpu-initialization \
 --recompute-activations \
 --distribute-saved-activations \
 --recompute-method=uniform \
---use-flash-attn \
 --use-mcore-models \
 
 --use-distributed-optimizer \
@@ -55,7 +55,9 @@ FIXED_ARGS="
 --overlap-param-gather \
 
 --no-delay-grad-reduce \
---empty-unused-memory-level=1
+--empty-unused-memory-level=1 \
+
+--exit-duration-in-mins $MAX_PROFILE_TIME_PER_EXPERIMENT
 "
 
 TORCHRUN_ARGS="
@@ -98,100 +100,204 @@ OUTPUT_ARGS="
     --eval-iters 10
 "
 
-PROFILING_ARGS="
-    --exit-duration-in-mins $MAX_RUNTIME_PER_EXPERIMENT
+NSYS_CMD="
+nsys profile -w true \
+-t cuda,nvtx,osrt,cudnn,cublas \
+-s none \
+-o $LOGDIR/$RUN_UID/nsys-profile-rank${NODE_RANK} \
+-f true -x true
 "
 
-set_config() {
+set_configs() {
     # Ensure the directory exists
-    mkdir -p "$LOGDIR/$RUN_UID"
+    # mkdir -p "$LOGDIR/$RUN_UID"
 
-    # Append each environment variable to the file
-    for arg in WORKDIR LOGDIR RUN_UID FIXED_ARGS SEARCH_ARGS TORCHRUN_ARGS GPT_ARGS DATA_ARGS OUTPUT_ARGS PROFILING_ARGS; do
+    for arg in WORKDIR LOGDIR RUN_UID USE_NSYS NODE_RANK FIXED_ARGS SEARCH_ARGS TORCHRUN_ARGS GPT_ARGS DATA_ARGS OUTPUT_ARGS; do
         if [ -n "${!arg}" ]; then # Check if the variable is set and not empty
-            echo "export $arg='${!arg}' && \\" >>"$LOGDIR/$RUN_UID/configs.env"
+            echo "$arg='${!arg}'" | sed 's/^[ \t]*//'
         fi
     done
 }
 
-SEARCH_ARGS=""
+launch() {
+    sudo mkdir -p orchestrator_logs/$RUN_UID
+    local pids=()
+    NODE_RANK=0
+    while IFS= read -r addr; do
+        # Execute the SSH command in the background
+        (set_configs | ssh "$addr" \
+            "
+            sudo systemctl stop docker
+            sudo mount /dev/sda4 /mnt
+            sudo systemctl start docker
+            sudo modprobe nvidia-peermem
+            sudo mkdir -p $LOGDIR/$RUN_UID
+            cat >> $LOGDIR/$RUN_UID/configs.env
 
+            image_exists=\$(docker images -q $IMAGE_NAME)
+            if [[ -z \"\$image_exists\" ]]; then
+                docker pull $IMAGE_NAME
+            fi
+
+            timeout ${MAX_RUNTIME_PER_EXPERIMENT}m docker run --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+                --env-file $LOGDIR/$RUN_UID/configs.env --stop-timeout 30\
+                -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt $IMAGE_NAME
+            " >orchestrator_logs/$RUN_UID/ssh_node$NODE_RANK.log 2>&1) &
+
+        pids+=("$!")
+        NODE_RANK=$((NODE_RANK + 1))
+    done <"$HOSTFILE"
+
+    local failure_flag=0
+    for idx in "${!pids[@]}"; do
+        pid=${pids[$idx]}
+        if ! wait "$pid"; then
+            addr=$(awk "NR==$((idx + 1))" "$HOSTFILE")
+            echo "Subprocess with address $addr in RUN $RUN_UID failed."
+            failure_flag=1
+        fi
+    done
+
+    if [ "$failure_flag" -eq 1 ]; then
+        return 1
+    else
+        echo "All subprocesses completed successfully in RUN $RUN_UID."
+        return 0
+    fi
+
+}
+
+# launch() {
+#     counter=0
+#     while IFS= read -r addr; do
+#         set_configs | ssh "$addr" \
+#             "
+#             sudo systemctl stop docker
+#             sudo mount /dev/sda4 /mnt
+#             sudo systemctl start docker
+#             sudo modprobe nvidia-peermem
+#             sudo mkdir -p $LOGDIR/$RUN_UID && \
+#             cat >> $LOGDIR/$RUN_UID/configs.env;
+
+#             image_exists=$(docker images -q '$IMAGE_NAME')
+
+#             if [[ -z \"$image_exists\" ]]; then
+#             docker pull $IMAGE_NAME
+#             fi
+
+#             docker run -d --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+#                 --env-file $LOGDIR/$RUN_UID/configs.env \
+#                 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt $IMAGE_NAME
+#             if [ $USE_NSYS -eq 0]; then
+#                 nohup bash $WORKDIR/testrun/basic-profiling.sh &
+#             fi
+#             exit 0
+#             "
+#         status=$?
+#         if [ $status -eq 0 ]; then
+#             echo "Starting launch to node $addr in RUN $RUN_UID successful."
+#         else
+#             echo "Starting launch on node $addr in RUN $RUN_UID failed. Status: $status."
+#         fi
+#         counter=$((counter + 1))
+#     done <"$HOSTFILE"
+# }
+
+# monitor_and_cleanup() {
+#     local check_interval=30 # How often to check the containers, in seconds.
+
+#     while :; do
+#         local all_running=true
+
+#         for detail in "${details[@]}"; do
+#             # Split the detail string into its components.
+#             IFS=' ' read -r addr docker_id bash_pid <<<"$detail"
+
+#             # Check if the Docker container is still running.
+#             if ssh "$addr" "[[ \$(docker ps -q -f id=\"$docker_id\") == \"\" ]]"; then
+#                 all_running=false
+#                 break # Exit the loop early if any container has stopped.
+#             fi
+#         done
+
+#         if [ "$all_running" = false ]; then
+#             echo "A container has stopped. Initiating cleanup..."
+
+#             for detail in "${details[@]}"; do
+#                 IFS=' ' read -r addr docker_id bash_pid <<<"$detail"
+
+#                 # Stop the Docker container.
+#                 ssh "$addr" "docker stop \"$docker_id\""
+
+#                 # If a Bash PID exists, kill it.
+#                 if [ -n "$bash_pid" ]; then
+#                     ssh "$addr" "kill \"$bash_pid\" 2>/dev/null || true"
+#                 fi
+#             done
+
+#             echo "Cleanup completed."
+#             return 0 # Exit the function successfully after cleanup.
+#         fi
+
+#         # Wait for the next check.
+#         sleep "$check_interval"
+#     done
+# }
+
+SEARCH_ARGS=""
 # Main search loop with boolean parameters included
 for context_size in $(powers_of_two $WORLD_SIZE); do
     for pipeline_size in $(powers_of_two $WORLD_SIZE); do
         for tensor_size in $(powers_of_two $WORLD_SIZE); do
-            for layers_per_virtual_stage in $(powers_of_two $NUM_LAYERS); do
+            for ((layers_per_virtual_stage = 1; layers_per_virtual_stage < $NUM_LAYERS; layers_per_virtual_stage++)); do
                 for sequence_parallel in 0 1; do
                     for no_clone_scatter_output_in_embedding in 0 1; do
-                        if [ $((context_size * pipeline_size * tensor_size)) -le $WORLD_SIZE ]; then
-                            # Check if the combination fits the layers constraint
-                            if [ $virtual_stages -gt 1]; then
-                                if [ $pipeline_size -gt 2]; then
-                                    if [ $((virtual_stages * pipeline_size)) -le $NUM_LAYERS ]; then
+                        for cpu_init in 0 1; do
+                            for USE_NSYS in 0 1; do
+                                if [ $((context_size * pipeline_size * tensor_size)) -le $WORLD_SIZE ]; then
+                                    # Check if the combination fits the layers constraint
+                                    if [ $virtual_stages -gt 1]; then
+                                        if [ $pipeline_size -gt 2]; then
+                                            if [ $((virtual_stages * pipeline_size)) -le $NUM_LAYERS ]; then
+                                                RUN_UID=$(date +%Y%m%d%H%M%S)
+                                                SEARCH_ARGS+="--context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size --num-layers-per-virtual-pipeline-stage $layers_per_virtual_stage"
+                                                if [ $sequence_parallel -eq 1 ]; then
+                                                    SEARCH_ARGS+="--sequence-parallel"
+                                                fi
+                                                if [ $no_clone_scatter_output_in_embedding -eq 1]; then
+                                                    SEARCH_ARGS+="--no-clone-scatter-output-in-embedding"
+                                                fi
+                                                if [ $cpu_init -eq 1]; then
+                                                    SEARCH_ARGS+="--use-cpu-initialization"
+                                                fi
+                                                launch
+                                                sleep 5
+                                            fi
+                                        fi
+                                    else #dont set virtual stages argument..
                                         RUN_UID=$(date +%Y%m%d%H%M%S)
-                                        SEARCH_ARGS+="
-                                            --context-parallel-size $context_size \
-                                            --pipeline-model-parallel-size $pipeline_size \
-                                            --tensor-model-parallel-size $tensor_size \
-                                            --num-layers-per-virtual-pipeline-stage $layers_per_virtual_stage
-                                            "
+                                        SEARCH_ARGS+="--context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size"
                                         if [ $sequence_parallel -eq 1 ]; then
                                             SEARCH_ARGS+="--sequence-parallel"
                                         fi
                                         if [ $no_clone_scatter_output_in_embedding -eq 1]; then
                                             SEARCH_ARGS+="--no-clone-scatter-output-in-embedding"
                                         fi
-                                        set_config
+                                        if [ $cpu_init -eq 1]; then
+                                            SEARCH_ARGS+="--use-cpu-initialization"
+                                        fi
+                                        launch
+                                        sleep 5
                                     fi
                                 fi
-                            else #dont set virtual stages argument..
-                                RUN_UID=$(date +%Y%m%d%H%M%S)
-                                SEARCH_ARGS+="
-                                            --context-parallel-size $context_size \
-                                            --pipeline-model-parallel-size $pipeline_size \
-                                            --tensor-model-parallel-size $tensor_size
-                                            "
-                                if [ $sequence_parallel -eq 1 ]; then
-                                    SEARCH_ARGS+="--sequence-parallel"
-                                fi
-                                if [ $no_clone_scatter_output_in_embedding -eq 1]; then
-                                    SEARCH_ARGS+="--no-clone-scatter-output-in-embedding"
-                                fi
-                                set_config
-                            fi
-                        fi
-
+                            done
+                        done
                     done
                 done
             done
         done
     done
 done
-
-# # Check if the combination is within the device limit
-
-# while IFS= read -r addr; do
-#     ssh -n "$addr" \
-#         "
-#         export NNODES='$NNODES' && \
-#         export WORKDIR='$WORKDIR' && \
-#         export GPUS_PER_NODE='$GPUS_PER_NODE' && \
-#         export WORLD_SIZE='$WORLD_SIZE' && \
-#         export MASTER_ADDR='$MASTER_ADDR' && \
-#         export MASTER_PORT='$MASTER_PORT' && \
-#         export NODE_RANK='$server_counter' && \
-#         cd $WORKDIR && \
-#         nohup bash '$JOB'.sh </dev/null &
-#         exit 0
-#         "
-#     status=$?
-#     if [ $status -eq 0 ]; then
-#         echo "Starting '$JOB' to node $addr successful."
-#     else
-#         echo "Starting '$JOB' on node $addr failed. Status: $status."
-#     fi
-#     server_counter=$((server_counter + 1))
-# done <"$HOSTFILE"
 
 eval $(ssh-agent -k)
 

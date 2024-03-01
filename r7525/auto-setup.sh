@@ -32,12 +32,12 @@ for i in "${!jobs[@]}"; do
                 sudo apt-get update && sudo apt-get install -y git && \
                 git clone https://github.com/mfdj2002/Megatron-LM.git
                 fi
-                cd '$WORKDIR' && \
+                cd $WORKDIR && \
                 mkdir -p setup-logs && \
-                if [ -f setup-logs/'$job'.log ]; then
-                echo \"job '$job' already executed on node '$addr'.\"
+                if [ -f setup-logs/$job.log ]; then
+                echo \"job $job already executed on node $addr.\"
                 else
-                nohup bash '$job'.sh >setup-logs/'$job'.log 2>&1 </dev/null &
+                nohup bash $job.sh >setup-logs/$job.log 2>&1 </dev/null &
                 exit 0
                 fi
                 "

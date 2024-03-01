@@ -4,15 +4,6 @@ set -ex
 MNT_DIR=/mnt
 DEVICE="/dev/sda4"
 
-# Check if the device is already mounted
-# if findmnt -rn -S $DEVICE -T $MNT_DIR >/dev/null; then
-#     echo "Device is already mounted."
-# else
-#     # Attempt to mount the device
-#     echo "Mounting device..."
-#     sudo mount $DEVICE $MNT_DIR
-#     echo "Device mounted."
-# fi
 sudo mount $DEVICE $MNT_DIR
 
 STAGE_DIR=$MNT_DIR/tmp

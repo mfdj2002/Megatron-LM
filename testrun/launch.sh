@@ -21,4 +21,4 @@ fi
 echo "Running $IMAGE_NAME..."
 docker run --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
   --env-file env.list \
-  -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt -v /mnt/logs:/logs $IMAGE_NAME
+  -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt $IMAGE_NAME
