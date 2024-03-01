@@ -11,6 +11,15 @@ STAGE_DIR=$MNT_DIR/tmp
 sudo mkdir -p $STAGE_DIR && sudo chmod 1777 $STAGE_DIR
 cd $STAGE_DIR
 
+##############################################################################
+# install dool since dstat not compatible with python3
+##############################################################################
+apt-get update && apt-get install -y --no-install-recommends git && \
+git clone https://github.com/scottchiefbaker/dool && \
+cd dool && \
+python install.py && \
+dool --version
+
 # ##############################################################################
 # install MLNX_OFED
 ################################################################################
