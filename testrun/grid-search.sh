@@ -2,7 +2,7 @@
 
 # grid search over common hyperparameters/parallelization strategies
 
-set -x
+# set -x
 
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
@@ -115,6 +115,7 @@ OUTPUT_ARGS="
 env_vars=("WORKDIR" "LOGDIR" "RUNNAME" "USE_NSYS" "NSYS_CMD" "NODE_RANK" "MAX_RUNTIME_PER_EXPERIMENT" "FIXED_ARGS" "SEARCH_ARGS" "TORCHRUN_ARGS" "GPT_ARGS" "DATA_ARGS" "OUTPUT_ARGS")
 
 launch() {
+    echo "Launching RUN $RUNNAME"
     mkdir -p $LOGDIR/$RUNNAME/orchestrator-log
     local pids=()
     # while IFS= read -r addr; do
@@ -159,8 +160,7 @@ launch() {
             sudo mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
             sudo mount /dev/sda4 /mnt
-            sudo systemctl start docker
-            sudo modprobe nvidia-peermem
+            sudo systemctl start docker && sudo modprobe nvidia-peermem || exit 1
 
             if [[ -z \"\$(docker images -q $IMAGE_NAME)\" ]]; then
                 sudo docker pull $IMAGE_NAME
@@ -173,7 +173,7 @@ launch() {
                 dool_pid=$!
             fi
 
-            sudo $docker_cmd
+            sudo $docker_cmd || exit 1
 
             if [ \"$USE_NSYS\" -eq 1 ]; then
                 sudo kill $nvidia_smi_pid $dool_pid 2>/dev/null || true
@@ -310,6 +310,10 @@ for cpu_init in 0 1; do
                                                     RUNNAME+="_cpuinit"
                                                 fi
                                                 launch
+                                                ret=$?
+                                                if [ $ret -eq 1 ]; then
+                                                    sleep 5
+                                                fi
                                             fi
                                         fi
                                     else #dont set virtual stages argument..
@@ -328,6 +332,10 @@ for cpu_init in 0 1; do
                                             RUNNAME+="_cpuinit"
                                         fi
                                         launch
+                                        ret=$?
+                                        if [ $ret -eq 1 ]; then
+                                            sleep 5
+                                        fi
                                     fi
                                 fi
                             done

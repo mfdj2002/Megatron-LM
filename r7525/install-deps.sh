@@ -9,16 +9,16 @@ sudo mount $DEVICE $MNT_DIR
 STAGE_DIR=$MNT_DIR/tmp
 
 sudo mkdir -p $STAGE_DIR && sudo chmod 1777 $STAGE_DIR
-cd $STAGE_DIR
 
 ##############################################################################
 # install dool since dstat not compatible with python3
 ##############################################################################
-apt-get update && apt-get install -y --no-install-recommends git && \
-git clone https://github.com/scottchiefbaker/dool && \
-cd dool && \
-python install.py && \
-dool --version
+cd $STAGE_DIR &&
+    sudo apt-get update && sudo apt-get install -y --no-install-recommends git &&
+    git clone https://github.com/scottchiefbaker/dool &&
+    cd dool &&
+    sudo python install.py &&
+    sudo dool --version
 
 # ##############################################################################
 # install MLNX_OFED
