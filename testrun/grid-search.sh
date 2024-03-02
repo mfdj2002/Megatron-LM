@@ -117,23 +117,22 @@ env_vars=("WORKDIR" "LOGDIR" "RUNNAME" "USE_NSYS" "NSYS_CMD" "NODE_RANK" "MAX_RU
 launch() {
     mkdir -p $LOGDIR/$RUNNAME/orchestrator-log
     local pids=()
-    NODE_RANK=0
-    TORCHRUN_ARGS="
-        --nproc_per_node $GPUS_PER_NODE \
-        --nnodes $NNODES \
-        --node_rank $NODE_RANK \
-        --master_addr $MASTER_ADDR \
-        --master_port $MASTER_PORT
-        "
-    NSYS_CMD="
-        nsys profile -w true \
-        -t cuda,nvtx,osrt,cudnn,cublas \
-        -s none \
-        -o $LOGDIR/$RUNNAME/nsys-profile-rank${NODE_RANK} \
-        -f true -x true
-        "
     # while IFS= read -r addr; do
-    for ((n = 0; n < $NNODES; n++)); do
+    for ((NODE_RANK = 0; NODE_RANK < $NNODES; NODE_RANK++)); do
+        TORCHRUN_ARGS="
+            --nproc_per_node $GPUS_PER_NODE \
+            --nnodes $NNODES \
+            --node_rank $NODE_RANK \
+            --master_addr $MASTER_ADDR \
+            --master_port $MASTER_PORT
+            "
+        NSYS_CMD="
+            nsys profile -w true \
+            -t cuda,nvtx,osrt,cudnn,cublas \
+            -s none \
+            -o $LOGDIR/$RUNNAME/nsys-profile-rank${NODE_RANK} \
+            -f true -x true
+            "
         docker_cmd="docker run"
         for var in "${env_vars[@]}"; do
             docker_cmd+=" -e $var=\"${!var}\""
@@ -141,39 +140,47 @@ launch() {
         docker_cmd+=" --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt --rm $IMAGE_NAME"
 
         echo $docker_cmd >$LOGDIR/$RUNNAME/orchestrator-log/master_docker_command.txt
-        addr=node$n.$ADDR_SUFFIX
+        addr="node$NODE_RANK.$ADDR_SUFFIX"
 
         # Execute the SSH command in the background
-        ssh-keyscan -H "$addr" >>~/.ssh/known_hosts
+        ssh-keygen -F $addr >/dev/null
+
+        # $? is the exit code of the last command (ssh-keygen -F)
+        # If the exit code is 0, the host already exists in known_hosts
+        if [ $? -eq 0 ]; then
+            echo "Host $addr already exists in known_hosts."
+        else
+            # If the host doesn't exist, add it
+            ssh-keyscan -H $addr >>~/.ssh/known_hosts
+            echo "Host $addr added to known_hosts."
+        fi
         ssh -n "$addr" \
             "
-            mkdir -p $LOGDIR/$RUNNAME
+            sudo mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
             sudo mount /dev/sda4 /mnt
             sudo systemctl start docker
             sudo modprobe nvidia-peermem
 
             if [[ -z \"\$(docker images -q $IMAGE_NAME)\" ]]; then
-                docker pull $IMAGE_NAME
+                sudo docker pull $IMAGE_NAME
             fi
 
             if [ \"$USE_NSYS\" -eq 1 ]; then
-                nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 >"$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" &
+                sudo nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 >"$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" &
                 nvidia_smi_pid=$!
-                dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
+                sudo dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
                 dool_pid=$!
             fi
 
-            \$docker_cmd
+            sudo $docker_cmd
 
             if [ \"$USE_NSYS\" -eq 1 ]; then
-                kill $nvidia_smi_pid $dool_pid 2>/dev/null || true
+                sudo kill $nvidia_smi_pid $dool_pid 2>/dev/null || true
             fi
                 
         " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node$NODE_RANK.log 2>&1 &
-
         pids+=("$!")
-        NODE_RANK=$((NODE_RANK + 1))
     done
 
     local failure_flag=0
