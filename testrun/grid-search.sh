@@ -14,10 +14,9 @@ IMAGE_NAME="mfdj2002/mds:latest"
 
 MAX_RUNTIME_PER_EXPERIMENT=5 #minutes
 
-
 if [ -z "$NNODES" ] || [ -z "$GPUS_PER_NODE" ]; then
-  echo "Error: NNODES and GPUS_PER_NODE are required."
-  exit -1
+    echo "Error: NNODES and GPUS_PER_NODE are required."
+    exit -1
 fi
 #assumes master is also orchestrator
 
@@ -32,7 +31,6 @@ MASTER_ADDR=$(hostname)
 MASTER_PORT=6000
 
 ADDR_SUFFIX="${MASTER_ADDR#*.}"
-ORCHESTRATOR_LOGDIR="$LOGDIR/orchestrator_logs"
 
 NUM_LAYERS=24
 MICRO_BATCH_SIZE=1
@@ -71,7 +69,6 @@ FIXED_ARGS="
 --exit-duration-in-mins $MAX_RUNTIME_PER_EXPERIMENT
 "
 
-
 GPT_ARGS="
     --num-layers $NUM_LAYERS \
     --hidden-size 1024 \
@@ -104,8 +101,6 @@ OUTPUT_ARGS="
     --eval-iters 10
 "
 
-
-
 # set_configs() {
 #     # Ensure the directory exists
 #     mkdir -p "test_configs/$RUN_UID"
@@ -117,11 +112,10 @@ OUTPUT_ARGS="
 #     done
 # }
 
-
 env_vars=("WORKDIR" "LOGDIR" "RUNNAME" "USE_NSYS" "NSYS_CMD" "NODE_RANK" "MAX_RUNTIME_PER_EXPERIMENT" "FIXED_ARGS" "SEARCH_ARGS" "TORCHRUN_ARGS" "GPT_ARGS" "DATA_ARGS" "OUTPUT_ARGS")
 
 launch() {
-    mkdir -p $ORCHESTRATOR_LOGDIR/$RUNNAME
+    mkdir -p $LOGDIR/$RUNNAME/orchestrator-log
     local pids=()
     NODE_RANK=0
     TORCHRUN_ARGS="
@@ -146,7 +140,7 @@ launch() {
         done
         docker_cmd+=" --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt --rm $IMAGE_NAME"
 
-        echo $docker_cmd > $ORCHESTRATOR_LOGDIR/$RUNNAME/master_docker_command.txt
+        echo $docker_cmd >$LOGDIR/$RUNNAME/orchestrator-log/master_docker_command.txt
         addr=node$n.$ADDR_SUFFIX
 
         # Execute the SSH command in the background
@@ -176,8 +170,8 @@ launch() {
                 kill $nvidia_smi_pid $dool_pid 2>/dev/null || true
             fi
                 
-        " >$ORCHESTRATOR_LOGDIR/$RUNNAME/ssh_node$NODE_RANK.log 2>&1 &
-        
+        " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node$NODE_RANK.log 2>&1 &
+
         pids+=("$!")
         NODE_RANK=$((NODE_RANK + 1))
     done
