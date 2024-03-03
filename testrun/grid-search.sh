@@ -177,7 +177,7 @@ launch() {
         ssh -n "$addr" \
             "
             trap 'sudo kill \\\$(jobs -p)' EXIT
-            sudo mkdir -p $LOGDIR/$RUNNAME
+            mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
             sudo mount /dev/sda4 /mnt
             sudo systemctl start docker && sudo modprobe nvidia-peermem || exit 1
