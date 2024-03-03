@@ -2,7 +2,7 @@
 
 # grid search over common hyperparameters/parallelization strategies
 
-set -x
+# set -x
 
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
@@ -41,13 +41,9 @@ fi
 #assumes master is also orchestrator
 
 # # NNODES=$(wc -l <"$HOSTFILE")
-# NNODES=4
-# # NNODES=4
-# GPUS_PER_NODE=2
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 # MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
 MASTER_ADDR=$(hostname)
-# MASTER_ADDR="0.0.0.0"
 MASTER_PORT=6000
 
 ADDR_SUFFIX="${MASTER_ADDR#*.}"
@@ -118,17 +114,6 @@ OUTPUT_ARGS="
     --eval-iters 10
 "
 
-# set_configs() {
-#     # Ensure the directory exists
-#     mkdir -p "test_configs/$RUN_UID"
-
-#     for arg in WORKDIR LOGDIR RUN_UID USE_NSYS NSYS_CMD NODE_RANK FIXED_ARGS SEARCH_ARGS TORCHRUN_ARGS GPT_ARGS DATA_ARGS OUTPUT_ARGS; do
-#         if [ -n "${!arg}" ]; then # Check if the variable is set and not empty
-#             echo "$arg='${!arg}'" | sed 's/^[ \t]*//' >>"test_configs/$RUN_UID/configs.env"
-#         fi
-#     done
-# }
-
 env_vars=("WORKDIR" "LOGDIR" "RUNNAME" "USE_NSYS" "NSYS_CMD" "NODE_RANK" "MAX_RUNTIME_PER_EXPERIMENT" "FIXED_ARGS" "SEARCH_ARGS" "TORCHRUN_ARGS" "GPT_ARGS" "DATA_ARGS" "OUTPUT_ARGS")
 
 launch() {
@@ -174,13 +159,13 @@ launch() {
             ssh-keyscan -H $addr >>~/.ssh/known_hosts
             echo "Host $addr added to known_hosts."
         fi
-        timeout "10m" ssh -n "$addr" \
+        timeout "8m" ssh -n "$addr" \
             "
             sudo mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
             sudo mount /dev/sda4 /mnt
             sudo systemctl start docker && sudo modprobe nvidia-peermem || exit 1
-
+            echo \"\$(date +%y-%m-%d,%H:%M:%S) Docker running on node $addr...\"
             sudo docker pull $IMAGE_NAME
             if [ \"$USE_NSYS\" -eq 0 ]; then
                 sudo nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 | sudo tee "$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" > /dev/null &
@@ -189,9 +174,13 @@ launch() {
                 dool_pid=\$!
             fi
             sudo $docker_cmd || exit 1
+            echo \"\$(date +%y-%m-%d,%H:%M:%S) Docker finished on node $addr...\"
             if [ \"$USE_NSYS\" -eq 0 ]; then
-                sudo kill \"\$nvidia_smi_pid\" \"\$dool_pid\" 2>/dev/null || true
+                sudo kill \"\$nvidia_smi_pid\" \"\$dool_pid\"
+                sudo kill -9 \"\$nvidia_smi_pid\" \"\$dool_pid\"
             fi
+            echo \"\$(date +%y-%m-%d,%H:%M:%S) Exiting node $addr...\"
+            exit 0
             " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node${NODE_RANK}.log 2>&1 &
         pids+=("$!")
     done
@@ -203,12 +192,13 @@ launch() {
         wait "$pid"
         exit_status=$?
 
-        # if [ $exit_status -eq 124 ]; then
-        #     echo "Node $rank in RUN $RUNNAME timed out. Sending sudo killall"
-        #     ssh -n addr="node$NODE_RANK.$ADDR_SUFFIX" "sudo killall -9 nvidia-smi; sudo killall -9 dool; sudo killall -9 docker"
-        #     failure_flag=1
+        if [ $exit_status -eq 124 ]; then
+            echo "$(date +%y-%m-%d,%H:%M:%S) Node $rank in RUN $RUNNAME timed out. Sending sudo killall"
+            ssh -n "node$rank.$ADDR_SUFFIX" "sudo killall -9 nvidia-smi; sudo pkill -f dool; sudo docker stop \$(sudo docker ps -q)"
+            failure_flag=1
+        fi
         if [ $exit_status -ne 0 ]; then
-            echo "Node $rank in RUN $RUNNAME failed with exit status $exit_status."
+            echo "$(date +%y-%m-%d,%H:%M:%S) Node $rank in RUN $RUNNAME failed with exit status $exit_status."
             failure_flag=1
         fi
     done
@@ -221,84 +211,6 @@ launch() {
     fi
 }
 
-# launch() {
-#     counter=0
-#     while IFS= read -r addr; do
-#         set_configs | ssh "$addr" \
-#             "
-#             sudo systemctl stop docker
-#             sudo mount /dev/sda4 /mnt
-#             sudo systemctl start docker
-#             sudo modprobe nvidia-peermem
-#             sudo mkdir -p $LOGDIR/$RUN_UID && \
-#             cat >> $LOGDIR/$RUN_UID/configs.env;
-
-#             image_exists=$(docker images -q '$IMAGE_NAME')
-
-#             if [[ -z \"$image_exists\" ]]; then
-#             docker pull $IMAGE_NAME
-#             fi
-
-#             docker run -d --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
-#                 --env-file $LOGDIR/$RUN_UID/configs.env \
-#                 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt $IMAGE_NAME
-#             if [ $USE_NSYS -eq 0]; then
-#                 nohup bash $WORKDIR/testrun/basic-profiling.sh &
-#             fi
-#             exit 0
-#             "
-#         status=$?
-#         if [ $status -eq 0 ]; then
-#             echo "Starting launch to node $addr in RUN $RUN_UID successful."
-#         else
-#             echo "Starting launch on node $addr in RUN $RUN_UID failed. Status: $status."
-#         fi
-#         counter=$((counter + 1))
-#     done <"$HOSTFILE"
-# }
-
-# monitor_and_cleanup() {
-#     local check_interval=30 # How often to check the containers, in seconds.
-
-#     while :; do
-#         local all_running=true
-
-#         for detail in "${details[@]}"; do
-#             # Split the detail string into its components.
-#             IFS=' ' read -r addr docker_id bash_pid <<<"$detail"
-
-#             # Check if the Docker container is still running.
-#             if ssh "$addr" "[[ \$(docker ps -q -f id=\"$docker_id\") == \"\" ]]"; then
-#                 all_running=false
-#                 break # Exit the loop early if any container has stopped.
-#             fi
-#         done
-
-#         if [ "$all_running" = false ]; then
-#             echo "A container has stopped. Initiating cleanup..."
-
-#             for detail in "${details[@]}"; do
-#                 IFS=' ' read -r addr docker_id bash_pid <<<"$detail"
-
-#                 # Stop the Docker container.
-#                 ssh "$addr" "docker stop \"$docker_id\""
-
-#                 # If a Bash PID exists, kill it.
-#                 if [ -n "$bash_pid" ]; then
-#                     ssh "$addr" "kill \"$bash_pid\" 2>/dev/null || true"
-#                 fi
-#             done
-
-#             echo "Cleanup completed."
-#             return 0 # Exit the function successfully after cleanup.
-#         fi
-
-#         # Wait for the next check.
-#         sleep "$check_interval"
-#     done
-# }
-
-# Main search loop with boolean parameters included
 for distribute_saved_activations in 0 1; do
     for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
@@ -370,9 +282,7 @@ for distribute_saved_activations in 0 1; do
                                         SEARCH_ARGS+=" --context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size --num-layers-per-virtual-pipeline-stage $layers_per_virtual_stage"
                                         RUNNAME+="_cp${context_size}-pp${pipeline_size}-tp${tensor_size}-lvpvs${layers_per_virtual_stage}"
                                         launch
-                                        if [ $? -eq 1 ]; then
-                                            sleep 5
-                                        fi
+                                        sleep 15
 
                                     else #dont set virtual stages argument..
                                         SEARCH_ARGS+=" --context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size"
@@ -382,9 +292,7 @@ for distribute_saved_activations in 0 1; do
                                         #     RUNNAME+="_se"
                                         # fi
                                         launch
-                                        if [ $? -eq 1 ]; then
-                                            sleep 5
-                                        fi
+                                        sleep 15
                                     fi
                                 done
                             done
