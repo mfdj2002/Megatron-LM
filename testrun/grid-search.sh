@@ -176,7 +176,6 @@ launch() {
         fi
         ssh -n "$addr" \
             "
-            trap 'sudo kill \\\$(jobs -p)' EXIT
             mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
             sudo mount /dev/sda4 /mnt
@@ -185,9 +184,14 @@ launch() {
             sudo docker pull $IMAGE_NAME
             if [ \"$USE_NSYS\" -eq 1 ]; then
                 sudo nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 >"$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" &
+                nvidia-smi_pid=\$!
                 sudo dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
+                dool_pid=\$!
             fi
             sudo $docker_cmd || exit 1
+            if [ \"$USE_NSYS\" -eq 1 ]; then
+                sudo kill \"\$nvidia-smi_pid\" \"\$dool_pid\" 2>/dev/null || true
+            fi
             " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node$NODE_RANK.log 2>&1 &
         pids+=("$!")
     done
