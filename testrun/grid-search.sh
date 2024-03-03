@@ -73,13 +73,12 @@ powers_of_two() {
 # --recompute-activations \
 # --distribute-saved-activations \
 # --recompute-method=uniform \
+# --use-distributed-optimizer \
+# --overlap-grad-reduce \
+# --overlap-param-gather \
 
 FIXED_ARGS="
 --use-mcore-models \
-
---use-distributed-optimizer \
---overlap-grad-reduce \
---overlap-param-gather \
 
 --no-delay-grad-reduce \
 --empty-unused-memory-level=1 \
@@ -133,10 +132,10 @@ OUTPUT_ARGS="
 env_vars=("WORKDIR" "LOGDIR" "RUNNAME" "USE_NSYS" "NSYS_CMD" "NODE_RANK" "MAX_RUNTIME_PER_EXPERIMENT" "FIXED_ARGS" "SEARCH_ARGS" "TORCHRUN_ARGS" "GPT_ARGS" "DATA_ARGS" "OUTPUT_ARGS")
 
 launch() {
-    echo "Launching RUN $RUNNAME"
-    mkdir -p $LOGDIR/$RUNNAME/orchestrator-log
+    echo "$(date +%y-%m-%d,%H:%M:%S) Launching RUN $RUNNAME..."
+    sudo mkdir -p $LOGDIR/$RUNNAME/orchestrator-log
     local pids=()
-    # while IFS= read -r addr; do
+
     for ((NODE_RANK = 0; NODE_RANK < $NNODES; NODE_RANK++)); do
         TORCHRUN_ARGS="
             --nproc_per_node $GPUS_PER_NODE \
@@ -160,6 +159,7 @@ launch() {
 
         if [ $NODE_RANK -eq 0 ]; then
             echo $docker_cmd >$LOGDIR/$RUNNAME/orchestrator-log/master_docker_command.txt
+            echo "docker command to run: $docker_cmd"
         fi
 
         addr="node$NODE_RANK.$ADDR_SUFFIX"
@@ -174,33 +174,41 @@ launch() {
             ssh-keyscan -H $addr >>~/.ssh/known_hosts
             echo "Host $addr added to known_hosts."
         fi
-        ssh -n "$addr" \
+        timeout "10m" ssh -n "$addr" \
             "
-            mkdir -p $LOGDIR/$RUNNAME
+            sudo mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
             sudo mount /dev/sda4 /mnt
             sudo systemctl start docker && sudo modprobe nvidia-peermem || exit 1
 
             sudo docker pull $IMAGE_NAME
-            if [ \"$USE_NSYS\" -eq 1 ]; then
-                sudo nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 >"$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" &
-                nvidia-smi_pid=\$!
+            if [ \"$USE_NSYS\" -eq 0 ]; then
+                sudo nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 | sudo tee "$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" > /dev/null &
+                nvidia_smi_pid=\$!
                 sudo dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
                 dool_pid=\$!
             fi
             sudo $docker_cmd || exit 1
-            if [ \"$USE_NSYS\" -eq 1 ]; then
-                sudo kill \"\$nvidia-smi_pid\" \"\$dool_pid\" 2>/dev/null || true
+            if [ \"$USE_NSYS\" -eq 0 ]; then
+                sudo kill \"\$nvidia_smi_pid\" \"\$dool_pid\" 2>/dev/null || true
             fi
-            " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node$NODE_RANK.log 2>&1 &
+            " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node${NODE_RANK}.log 2>&1 &
         pids+=("$!")
     done
+    echo "$(date +%y-%m-%d,%H:%M:%S) Waiting for subprocesses to finish in RUN $RUNNAME..."
 
     local failure_flag=0
-    for idx in "${!pids[@]}"; do
-        pid=${pids[$idx]}
-        if ! wait "$pid"; then
-            echo "Node $idx in RUN $RUNNAME failed."
+    for rank in "${!pids[@]}"; do
+        pid=${pids[$rank]}
+        wait "$pid"
+        exit_status=$?
+
+        # if [ $exit_status -eq 124 ]; then
+        #     echo "Node $rank in RUN $RUNNAME timed out. Sending sudo killall"
+        #     ssh -n addr="node$NODE_RANK.$ADDR_SUFFIX" "sudo killall -9 nvidia-smi; sudo killall -9 dool; sudo killall -9 docker"
+        #     failure_flag=1
+        if [ $exit_status -ne 0 ]; then
+            echo "Node $rank in RUN $RUNNAME failed with exit status $exit_status."
             failure_flag=1
         fi
     done
@@ -208,7 +216,7 @@ launch() {
     if [ "$failure_flag" -eq 1 ]; then
         return 1
     else
-        echo "All subprocesses completed successfully in RUN $RUNNAME."
+        echo "$(date +%y-%m-%d,%H:%M:%S) All subprocesses completed successfully in RUN $RUNNAME."
         return 0
     fi
 }

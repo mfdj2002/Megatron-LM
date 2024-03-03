@@ -7,7 +7,7 @@ export GPUS_PER_NODE=2
 export JOB_NAME="gpt3-${MODEL_SIZE}B-$(date +%y%m%d%H%M%S)"
 export LOGDIR="/mnt/logs/${JOB_NAME}"
 
-mkdir -p $LOGDIR
+sudo mkdir -p $LOGDIR
 
 nohup bash grid-search.sh >"$LOGDIR/grid-search.log" 2>&1 &
 echo $! >"$LOGDIR/grid-search.pid"
