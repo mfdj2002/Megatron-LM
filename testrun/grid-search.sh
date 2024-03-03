@@ -2,7 +2,7 @@
 
 # grid search over common hyperparameters/parallelization strategies
 
-# set -x
+set -x
 
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
@@ -133,7 +133,7 @@ env_vars=("WORKDIR" "LOGDIR" "RUNNAME" "USE_NSYS" "NSYS_CMD" "NODE_RANK" "MAX_RU
 
 launch() {
     echo "$(date +%y-%m-%d,%H:%M:%S) Launching RUN $RUNNAME..."
-    sudo mkdir -p $LOGDIR/$RUNNAME/orchestrator-log
+    mkdir -p $LOGDIR/$RUNNAME/orchestrator-log
     local pids=()
 
     for ((NODE_RANK = 0; NODE_RANK < $NNODES; NODE_RANK++)); do

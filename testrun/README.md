@@ -1,3 +1,8 @@
+Usage: bash start-search.sh
+
+
+
+
 args known to increase training efficiency but might or might not impact stability: 
 
 --recompute-activations # action='store_true',

@@ -8,6 +8,7 @@ export JOB_NAME="gpt3-${MODEL_SIZE}B-$(date +%y%m%d%H%M%S)"
 export LOGDIR="/mnt/logs/${JOB_NAME}"
 
 sudo mkdir -p $LOGDIR
+sudo chmod 777 $LOGDIR
 
 nohup bash grid-search.sh >"$LOGDIR/grid-search.log" 2>&1 &
 echo $! >"$LOGDIR/grid-search.pid"
