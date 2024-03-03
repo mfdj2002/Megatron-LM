@@ -9,4 +9,5 @@ export LOGDIR="/mnt/logs/${JOB_NAME}"
 
 mkdir -p $LOGDIR
 
-nohup bash grid-search.sh >$LOGDIR/grid-search.log 2>&1 &
+nohup bash grid-search.sh >"$LOGDIR/grid-search.log" 2>&1 &
+echo $! >"$LOGDIR/grid-search.pid"
