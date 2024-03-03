@@ -7,9 +7,29 @@
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
 
+## GPT-3 13B
+# MODEL_SIZE=13
+# NUM_LAYERS=40
+# HIDDEN_SIZE=5120
+# MICRO_BATCH_SIZE=32
+# NUM_ATTN_HEADS=40
+# LR=1.0e-4
+# MIN_LR=1.0e-6
+# INIT_STD=0.008
+# SEQ_LEN=1024
+
+NUM_LAYERS=24
+HIDDEN_SIZE=2048
+NUM_ATTN_HEADS=16
+MICRO_BATCH_SIZE=1
+LR=2.0e-4
+MIN_LR=1.0e-6
+SEQ_LEN=1024
+# init_std=0.013
+
 WORKDIR="/workspace/Megatron-LM"
 # HOSTFILE="../hostfile.txt"
-LOGDIR="/mnt/logs"
+
 IMAGE_NAME="mfdj2002/mds:latest"
 
 MAX_RUNTIME_PER_EXPERIMENT=5 #minutes
@@ -32,10 +52,7 @@ MASTER_PORT=6000
 
 ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
-NUM_LAYERS=24
-MICRO_BATCH_SIZE=1
-
-CHECKPOINT_PATH=/mnt/checkpoints/gpt2_345m
+CHECKPOINT_PATH=/mnt/checkpoints/${JOB_NAME}
 VOCAB_FILE=testrun/gpt2-vocab.json
 MERGE_FILE=testrun/gpt2-merges.txt
 DATA_PATH=testrun/dataset/pile_gpt_train_text_document
@@ -53,10 +70,11 @@ powers_of_two() {
 #--use-flash-attn \
 #cannot use flash attention because only supported in A100 GPUs
 
+# --recompute-activations \
+# --distribute-saved-activations \
+# --recompute-method=uniform \
+
 FIXED_ARGS="
---recompute-activations \
---distribute-saved-activations \
---recompute-method=uniform \
 --use-mcore-models \
 
 --use-distributed-optimizer \
@@ -71,19 +89,19 @@ FIXED_ARGS="
 
 GPT_ARGS="
     --num-layers $NUM_LAYERS \
-    --hidden-size 1024 \
-    --num-attention-heads 16 \
-    --seq-length 1024 \
-    --max-position-embeddings 1024 \
+    --hidden-size $HIDDEN_SIZE \
+    --num-attention-heads $NUM_ATTN_HEADS \
+    --seq-length $SEQ_LEN \
+    --max-position-embeddings $SEQ_LEN \
     --micro-batch-size $MICRO_BATCH_SIZE \
-    --lr 0.00015 \
+    --lr $LR \
     --train-iters 500000 \
     --lr-decay-iters 320000 \
     --lr-decay-style cosine \
-    --min-lr 1.0e-5 \
-    --weight-decay 1e-2 \
-    --lr-warmup-fraction .01 \
+    --weight-decay 0.1 \
     --clip-grad 1.0 \
+    --hysteresis 2 \
+    --min-lr $MIN_LR \
     --fp16
 "
 
@@ -140,7 +158,10 @@ launch() {
         done
         docker_cmd+=" --privileged --gpus all --network=host --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -v ~/Megatron-LM:/workspace/Megatron-LM -v /mnt:/mnt --rm $IMAGE_NAME"
 
-        echo $docker_cmd >$LOGDIR/$RUNNAME/orchestrator-log/master_docker_command.txt
+        if [ $NODE_RANK -eq 0 ]; then
+            echo $docker_cmd >$LOGDIR/$RUNNAME/orchestrator-log/master_docker_command.txt
+        fi
+
         addr="node$NODE_RANK.$ADDR_SUFFIX"
 
         # Execute the SSH command in the background
@@ -148,38 +169,26 @@ launch() {
 
         # $? is the exit code of the last command (ssh-keygen -F)
         # If the exit code is 0, the host already exists in known_hosts
-        if [ $? -eq 0 ]; then
-            echo "Host $addr already exists in known_hosts."
-        else
+        if [ $? -eq 1 ]; then
             # If the host doesn't exist, add it
             ssh-keyscan -H $addr >>~/.ssh/known_hosts
             echo "Host $addr added to known_hosts."
         fi
         ssh -n "$addr" \
             "
+            trap 'sudo kill \\\$(jobs -p)' EXIT
             sudo mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
             sudo mount /dev/sda4 /mnt
             sudo systemctl start docker && sudo modprobe nvidia-peermem || exit 1
 
-            if [[ -z \"\$(docker images -q $IMAGE_NAME)\" ]]; then
-                sudo docker pull $IMAGE_NAME
-            fi
-
+            sudo docker pull $IMAGE_NAME
             if [ \"$USE_NSYS\" -eq 1 ]; then
                 sudo nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 >"$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" &
-                nvidia_smi_pid=$!
                 sudo dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
-                dool_pid=$!
             fi
-
             sudo $docker_cmd || exit 1
-
-            if [ \"$USE_NSYS\" -eq 1 ]; then
-                sudo kill $nvidia_smi_pid $dool_pid 2>/dev/null || true
-            fi
-                
-        " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node$NODE_RANK.log 2>&1 &
+            " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node$NODE_RANK.log 2>&1 &
         pids+=("$!")
     done
 
@@ -187,7 +196,7 @@ launch() {
     for idx in "${!pids[@]}"; do
         pid=${pids[$idx]}
         if ! wait "$pid"; then
-            echo "Node $NODE_RANK in RUN $RUNNAME failed."
+            echo "Node $idx in RUN $RUNNAME failed."
             failure_flag=1
         fi
     done
@@ -198,7 +207,6 @@ launch() {
         echo "All subprocesses completed successfully in RUN $RUNNAME."
         return 0
     fi
-
 }
 
 # launch() {
@@ -279,69 +287,100 @@ launch() {
 # }
 
 # Main search loop with boolean parameters included
-# count=0
-for cpu_init in 0 1; do
-    for USE_NSYS in 0 1; do
-        for tensor_size in $(powers_of_two $WORLD_SIZE); do
-            for pipeline_size in $(powers_of_two $WORLD_SIZE); do
-                for ((layers_per_virtual_stage = 1; layers_per_virtual_stage < $NUM_LAYERS; layers_per_virtual_stage++)); do
-                    for context_size in $(powers_of_two $WORLD_SIZE); do
-                        for sequence_parallel in 0 1; do
-                            for no_clone_scatter_output_in_embedding in 0 1; do
-                                SEARCH_ARGS=""
-                                RUNNAME="$(date +%m%d%H)_"
-                                if [ $((context_size * pipeline_size * tensor_size)) -le $WORLD_SIZE ]; then
-                                    # Check if the combination fits the layers constraint
-                                    if [ $layers_per_virtual_stage -gt 1 ]; then
-                                        if [ $pipeline_size -gt 2 ]; then
-                                            if [ $((layers_per_virtual_stage * pipeline_size)) -le $NUM_LAYERS ]; then
-                                                SEARCH_ARGS+="--context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size --num-layers-per-virtual-pipeline-stage $layers_per_virtual_stage"
-                                                RUNNAME+="cp${context_size}-pp${pipeline_size}-tp${tensor_size}-lvpvs${layers_per_virtual_stage}"
-                                                if [ $sequence_parallel -eq 1 ]; then
-                                                    SEARCH_ARGS+=" --sequence-parallel"
-                                                    RUNNAME+="_sp"
-                                                fi
-                                                if [ $no_clone_scatter_output_in_embedding -eq 1 ]; then
-                                                    SEARCH_ARGS+=" --no-clone-scatter-output-in-embedding"
-                                                    RUNNAME+="_ncso"
-                                                fi
-                                                if [ $cpu_init -eq 1 ]; then
-                                                    SEARCH_ARGS+=" --use-cpu-initialization"
-                                                    RUNNAME+="_cpuinit"
-                                                fi
-                                                launch
-                                                ret=$?
-                                                if [ $ret -eq 1 ]; then
-                                                    sleep 5
-                                                fi
-                                            fi
+for distribute_saved_activations in 0 1; do
+    for recompute_activation in 0 1; do
+        # for standalone_embedding in 0 1; do
+        #     for no_clone_scatter_output_in_embedding in 0 1; do
+        for sequence_parallel in 0 1; do
+            for context_size in $(powers_of_two $WORLD_SIZE); do
+                for ((layers_per_virtual_stage = 1; layers_per_virtual_stage <= $NUM_LAYERS / 2; layers_per_virtual_stage++)); do
+                    for pipeline_size in $(powers_of_two $WORLD_SIZE); do
+                        for tensor_size in $(powers_of_two $WORLD_SIZE); do
+                            for USE_NSYS in 0 1; do
+                                for cpu_init in 0 1; do
+                                    SEARCH_ARGS=""
+                                    RUNNAME="$(date +%y%m%d%H%M%S)"
+                                    if [ $USE_NSYS -eq 1 ]; then
+                                        RUNNAME+="_nsys"
+                                    else
+                                        RUNNAME+="_basic_prof"
+                                    fi
+                                    if [ $((context_size * pipeline_size * tensor_size)) -gt $WORLD_SIZE ]; then
+                                        continue
+                                    fi
+                                    if [ $recompute_activation -eq 1 ]; then
+                                        SEARCH_ARGS+=" --recompute-activations --recompute-granularity=selective"
+                                        RUNNAME+="_ra"
+                                    fi
+                                    if [ $distribute_saved_activations -eq 1 ]; then
+                                        if [ $tensor_size -eq 1 ]; then
+                                            continue
                                         fi
-                                    else #dont set virtual stages argument..
-                                        SEARCH_ARGS+="--context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size"
-                                        RUNNAME+="cp${context_size}-pp${pipeline_size}-tp${tensor_size}"
+                                        if [ $recompute_activation -eq 1 ]; then
+                                            continue
+                                        fi
+                                        SEARCH_ARGS+=" --distribute-saved-activations --recompute-granularity=full --recompute-method=uniform" #defaults to uniform, saves block for future exploration
+                                        RUNNAME+="_dsa"
+                                    fi
+                                    if [ $tensor_size -eq 1 ]; then # Added missing space before 'then'
                                         if [ $sequence_parallel -eq 1 ]; then
-                                            SEARCH_ARGS+=" --sequence-parallel"
-                                            RUNNAME+="_sp"
+                                            continue
                                         fi
-                                        if [ $no_clone_scatter_output_in_embedding -eq 1 ]; then
-                                            SEARCH_ARGS+=" --no-clone-scatter-output-in-embedding"
-                                            RUNNAME+="_ncso"
+                                    fi
+                                    if [ $sequence_parallel -eq 1 ]; then
+                                        SEARCH_ARGS+=" --sequence-parallel --no-async-tensor-model-parallel-allreduce"
+                                        RUNNAME+="_sp"
+                                    fi
+                                    # if [ $no_clone_scatter_output_in_embedding -eq 1 ]; then
+                                    #     SEARCH_ARGS+=" --no-clone-scatter-output-in-embedding"
+                                    #     RUNNAME+="_ncso"
+                                    # fi
+                                    if [ $cpu_init -eq 1 ]; then
+                                        SEARCH_ARGS+=" --use-cpu-initialization"
+                                        RUNNAME+="_cpuinit"
+                                    fi
+
+                                    if [ $layers_per_virtual_stage -gt 1 ]; then
+                                        if [ $pipeline_size -lt 2 ]; then
+                                            continue
                                         fi
-                                        if [ $cpu_init -eq 1 ]; then
-                                            SEARCH_ARGS+=" --use-cpu-initialization"
-                                            RUNNAME+="_cpuinit"
+                                        # if [ $standalone_embedding -eq 1 ]; then
+                                        #     if [ $(($NUM_LAYERS % (layers_per_virtual_stage - 1))) -ne 0 ]; then
+                                        #         continue
+                                        #     fi
+                                        #     SEARCH_ARGS+=" --standalone-embedding-stage"
+                                        #     RUNNAME+="_se"
+                                        # else
+                                        if [ $(($NUM_LAYERS % layers_per_virtual_stage)) -ne 0 ]; then
+                                            continue
                                         fi
+                                        # fi
+                                        SEARCH_ARGS+=" --context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size --num-layers-per-virtual-pipeline-stage $layers_per_virtual_stage"
+                                        RUNNAME+="_cp${context_size}-pp${pipeline_size}-tp${tensor_size}-lvpvs${layers_per_virtual_stage}"
                                         launch
-                                        ret=$?
-                                        if [ $ret -eq 1 ]; then
+                                        if [ $? -eq 1 ]; then
+                                            sleep 5
+                                        fi
+
+                                    else #dont set virtual stages argument..
+                                        SEARCH_ARGS+=" --context-parallel-size $context_size --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size"
+                                        RUNNAME+="_cp${context_size}-pp${pipeline_size}-tp${tensor_size}"
+                                        # if [ $standalone_embedding -eq 1 ]; then
+                                        #     SEARCH_ARGS+=" --standalone-embedding-stage"
+                                        #     RUNNAME+="_se"
+                                        # fi
+                                        launch
+                                        if [ $? -eq 1 ]; then
                                             sleep 5
                                         fi
                                     fi
-                                fi
+                                done
                             done
                         done
                     done
                 done
+                #     done
+                # done
             done
         done
     done
