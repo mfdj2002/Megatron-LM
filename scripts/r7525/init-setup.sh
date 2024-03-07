@@ -45,16 +45,16 @@ mkdir -p $HOME/.ssh && chmod 700 $HOME/.ssh
 
 # Check if the SSH private key already exists
 if [ ! -f "$SSH_KEY_PATH" ]; then
-    echo "SSH key not found. Generating new SSH key..."
+	echo "SSH key not found. Generating new SSH key..."
 
-    # Retrieve the server-generated RSA private key.
-    geni-get key >"$SSH_KEY_PATH"
-    chmod 600 "$SSH_KEY_PATH"
+	# Retrieve the server-generated RSA private key.
+	geni-get key >"$SSH_KEY_PATH"
+	chmod 600 "$SSH_KEY_PATH"
 
-    # Derive the corresponding public key portion.
-    ssh-keygen -y -f "$SSH_KEY_PATH" >"${SSH_KEY_PATH}.pub"
+	# Derive the corresponding public key portion.
+	ssh-keygen -y -f "$SSH_KEY_PATH" >"${SSH_KEY_PATH}.pub"
 else
-    echo "SSH key already exists. Skipping key generation."
+	echo "SSH key already exists. Skipping key generation."
 fi
 
 # Ensure the authorized_keys2 file exists and is properly appended
