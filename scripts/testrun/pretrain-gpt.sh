@@ -24,12 +24,13 @@ if [ "$USE_NSYS" -eq 1 ]; then
         $GPT_ARGS \
         $DATA_ARGS \
         $OUTPUT_ARGS \
-        >$LOGDIR/$RUNNAME/torchrun-rank${NODE_RANK}.log 2>&1
+        >>$LOGDIR/$RUNNAME/torchrun-rank${NODE_RANK}.log 2>&1
     ret=$?
     retry_counter=1
-    echo "nsys exit code: $ret"
-    while [[ $ret -ne 0 && $ret -ne 124 && $retry_counter -lt 3 ]]; do
-        echo "nsys failed. Retrying in 60 seconds..."
+    # echo "nsys exit code: $ret"
+    while [[ $ret -ne 0 && $ret -ne 124 && $retry_counter -lt 5 ]]; do
+        # echo "nsys failed. Retrying in 60 seconds..."
+        echo "nsys returned: $ret, retrying in 60 seconds..." >>$LOGDIR/$RUNNAME/torchrun-rank${NODE_RANK}.log
         sleep 60
         timeout "${MAX_RUNTIME_PER_EXPERIMENT}m" $NSYS_CMD torchrun $TORCHRUN_ARGS pretrain_gpt.py \
             $FIXED_ARGS \
@@ -37,7 +38,7 @@ if [ "$USE_NSYS" -eq 1 ]; then
             $GPT_ARGS \
             $DATA_ARGS \
             $OUTPUT_ARGS \
-            >$LOGDIR/$RUNNAME/torchrun-rank${NODE_RANK}.log 2>&1
+            >>$LOGDIR/$RUNNAME/torchrun-rank${NODE_RANK}.log 2>&1
         ret=$?
         retry_counter=$((retry_counter + 1))
     done
