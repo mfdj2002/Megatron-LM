@@ -167,7 +167,7 @@ launch() {
             echo "Host $addr added to known_hosts."
         fi
         max_time="10m"
-        if $counter -eq 0; then
+        if [ $counter -eq 0 ]; then
             max_time="20m"
         fi
         #8m for basic profiling runs, 10m for nvprof?
