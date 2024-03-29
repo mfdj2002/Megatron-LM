@@ -1,5 +1,5 @@
 #!/bin/sh
-set -ex
+# set -ex
 
 MNT_DIR=/mnt
 DEVICE="/dev/sda4"

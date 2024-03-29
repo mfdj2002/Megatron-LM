@@ -4,7 +4,7 @@ set -x
 eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
 
-WORKDIR="Megatron-LM/r7525"
+WORKDIR="Megatron-LM/scripts/r7525"
 HOSTFILE="../hostfile.txt"
 
 # Maximum number of attempts
@@ -19,15 +19,16 @@ total_jobs=${#jobs[@]}
 for i in "${!jobs[@]}"; do
 	job=${jobs[$i]}
 	while IFS= read -r addr; do
-		attempt=1
-		while [ $attempt -le $MAX_ATTEMPTS ]; do
-			if [ $attempt -gt 1 ]; then
-				echo "Last attempt to connect to master failed. Retrying in $RETRY_DELAY seconds..."
-				sleep $RETRY_DELAY
-			fi
-			echo "Attempt $attempt of $MAX_ATTEMPTS: Trying to SSH into node $addr for job $job..."
-			ssh -n "$addr" \
-				"
+		if [ -n "$addr" ]; then
+			attempt=1
+			while [ $attempt -le $MAX_ATTEMPTS ]; do
+				if [ $attempt -gt 1 ]; then
+					echo "Last attempt to connect to master failed. Retrying in $RETRY_DELAY seconds..."
+					sleep $RETRY_DELAY
+				fi
+				echo "Attempt $attempt of $MAX_ATTEMPTS: Trying to SSH into node $addr for job $job..."
+				ssh -o StrictHostKeyChecking=no -n "$addr" \
+					"
                 if [[ ! -d \"Megatron-LM\" ]]; then
                 sudo apt-get update && sudo apt-get install -y git && \
                 git clone https://github.com/mfdj2002/Megatron-LM.git
@@ -41,19 +42,20 @@ for i in "${!jobs[@]}"; do
                 exit 0
                 fi
                 "
-			status=$?
-			if [ $status -eq 0 ]; then
-				echo "SSH connection to node $addr successful."
-				break
+				status=$?
+				if [ $status -eq 0 ]; then
+					echo "SSH connection to node $addr successful."
+					break
+				else
+					echo "SSH connection failed. Status: $status."
+					attempt=$((attempt + 1))
+				fi
+			done
+			if [ $attempt -gt $MAX_ATTEMPTS ]; then
+				echo "Reached maximum number of retries. Giving up."
 			else
-				echo "SSH connection failed. Status: $status."
-				attempt=$((attempt + 1))
+				echo "Job $job sent successfully."
 			fi
-		done
-		if [ $attempt -gt $MAX_ATTEMPTS ]; then
-			echo "Reached maximum number of retries. Giving up."
-		else
-			echo "Job $job sent successfully."
 		fi
 	done <"$HOSTFILE"
 	# Check if not last job then sleep
