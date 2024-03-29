@@ -49,9 +49,9 @@ MASTER_PORT=6000
 ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
 CHECKPOINT_PATH=/mnt/checkpoints/${JOB_NAME}
-VOCAB_FILE=testrun/gpt2-vocab.json
-MERGE_FILE=testrun/gpt2-merges.txt
-DATA_PATH=testrun/dataset/pile_gpt_train_text_document
+VOCAB_FILE=scripts/testrun/gpt2-vocab.json
+MERGE_FILE=scripts/testrun/gpt2-merges.txt
+DATA_PATH=scripts/testrun/dataset/pile_gpt_train_text_document
 
 # Function to generate powers of two up to a maximum value
 powers_of_two() {
@@ -159,14 +159,20 @@ launch() {
 
         # $? is the exit code of the last command (ssh-keygen -F)
         # If the exit code is 0, the host already exists in known_hosts
-        if [ $? -eq 1 ]; then
+        if [ $? -ne 0 ]; then
             # If the host doesn't exist, add it
+            touch ~/.ssh/known_hosts
+            chmod 644 ~/.ssh/known_hosts
             ssh-keyscan -H $addr >>~/.ssh/known_hosts
             echo "Host $addr added to known_hosts."
         fi
+        max_time="10m"
+        if $counter -eq 0; then
+            max_time="20m"
+        fi
         #8m for basic profiling runs, 10m for nvprof?
         #timeout "8m" ssh -n "$addr" \
-        timeout "10m" ssh -n "$addr" \
+        timeout $max_time ssh -n "$addr" \
             "
             sudo mkdir -p $LOGDIR/$RUNNAME
             sudo systemctl stop docker
@@ -223,7 +229,7 @@ launch() {
     fi
 }
 
-counter=1
+counter=0
 # for distribute_saved_activations in 0 1; do
 for recompute_activation in 0 1; do
     # for standalone_embedding in 0 1; do
@@ -334,6 +340,7 @@ for recompute_activation in 0 1; do
     # done
 done
 # done
+counter=$((counter + 1))
 echo "Total number of runs: $counter"
 
 eval $(ssh-agent -k)
