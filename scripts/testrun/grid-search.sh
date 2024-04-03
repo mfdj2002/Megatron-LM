@@ -117,7 +117,7 @@ OUTPUT_ARGS="
 ############# only for basic profiling runs:
 #USE_NSYS=0
 # use for nvprof runs:
-USE_NSYS=1
+# USE_NSYS=1
 
 env_vars=("WORKDIR" "LOGDIR" "RUNNAME" "USE_NSYS" "NSYS_CMD" "NODE_RANK" "MAX_RUNTIME_PER_EXPERIMENT" "FIXED_ARGS" "SEARCH_ARGS" "TORCHRUN_ARGS" "GPT_ARGS" "DATA_ARGS" "OUTPUT_ARGS")
 
@@ -243,12 +243,11 @@ for recompute_activation in 0 1; do
             # for cpu_init in 0 1; do
             SEARCH_ARGS=""
             RUNNAME="$(date +%y%m%d%H%M%S)"
-            # if [ $USE_NSYS -eq 1 ]; then
-            #     RUNNAME+="-nsys"
-            # else
-            # RUNNAME+="-basic_prof"
-            RUNNAME+="-nv_prof"
-            # fi
+            if [ $USE_NSYS -eq 1 ]; then
+                RUNNAME+="-nv_prof"
+            else
+                RUNNAME+="-basic_prof"
+            fi
             # if [ $((context_size * pipeline_size * tensor_size)) -gt $WORLD_SIZE ]; then
             #     continue
             # fi

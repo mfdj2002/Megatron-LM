@@ -1,7 +1,10 @@
 #!/bin/bash
 
 cd $WORKDIR
-
+export TORCH_CPP_LOG_LEVEL=INFO
+export TORCH_DISTRIBUTED_DEBUG=INFO
+export TORCH_SHOW_CPP_STACKTRACES=1
+export NCCL_DEBUG=INFO
 # Runs the "345M" parameter model
 #export NCCL_P2P_DISABLE=1
 export CUDA_DEVICE_MAX_CONNECTIONS=1

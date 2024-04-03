@@ -1,7 +1,27 @@
-Usage: bash start-search.sh
+Usage: 
+
+1. from the local machine, write the addresses of the nodes to a hostfile.txt under the Megatron-LM/scripts/ directory 
+
+2. setup the nodes from local machine by simply: bash auto-setup.sh
+
+3. review the USE_NSYS, NNODE and GPUS_PER_NODE environmental arguments in start-search.sh
+
+4. use bash start-search.sh to start grid search on the master node (NOT on local machine). 
+
+Note: 
+As of now, pretrain-gpt.sh is compiled with the following debugging environmental variables:
+    export TORCH_CPP_LOG_LEVEL=INFO
+    export TORCH_DISTRIBUTED_DEBUG=INFO
+    export TORCH_SHOW_CPP_STACKTRACES=1
+    export NCCL_DEBUG=INFO
+
+Parameters searched as of now: 
+recompute activation, pipeline parallelism size, tensor parallelism size
+
+Once the script stablizes, we will remove these variables to make the log more clean.
 
 
-
+misc:
 
 args known to increase training efficiency but might or might not impact stability: 
 
