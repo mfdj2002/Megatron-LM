@@ -25,7 +25,7 @@ cd $STAGE_DIR &&
 ################################################################################
 
 # ENV MLNX_OFED_VERSION=4.9-7.1.0.0
-MLNX_OFED_VERSION=5.4-3.7.5.0
+MLNX_OFED_VERSION="5.4-3.7.5.0"
 # RUN apt-get update && \
 sudo apt-get install -y --no-install-recommends libcap2
 

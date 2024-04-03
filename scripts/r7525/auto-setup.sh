@@ -5,7 +5,7 @@ eval $(ssh-agent -s)
 ssh-add ~/.ssh/id_rsa
 
 WORKDIR="Megatron-LM/scripts/r7525"
-HOSTFILE="../hostfile.txt"
+HOSTFILE="./hostfile.txt"
 
 # Maximum number of attempts
 MAX_ATTEMPTS=5
