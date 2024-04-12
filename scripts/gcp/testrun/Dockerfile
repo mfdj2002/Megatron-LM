@@ -9,4 +9,10 @@ RUN pip install --no-cache-dir transformers==4.30.0 \
 
 COPY pretrain-gpt.sh /pretrain-gpt.sh
 RUN chmod +x /pretrain-gpt.sh
+
+RUN git clone https://github.com/scottchiefbaker/dool && \
+	cd dool && \
+	python install.py && \
+	dool --version
+
 ENTRYPOINT ["/pretrain-gpt.sh"]

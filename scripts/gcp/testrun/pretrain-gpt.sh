@@ -21,7 +21,7 @@ export CUDA_DEVICE_MAX_CONNECTIONS=1
 #TODO: add retry logic in USE_NSYS = 1
 
 if [ "$USE_NSYS" -eq 1 ]; then
-    timeout "${MAX_RUNTIME_PER_EXPERIMENT}m" $NSYS_CMD torchrun $TORCHRUN_ARGS pretrain_gpt.py \
+    timeout "${MAX_RUNTIME_PER_EXPERIMENT}m" $NSYS_CMD python -m torch.distributed.run $TORCHRUN_ARGS pretrain_gpt.py \
         $FIXED_ARGS \
         $SEARCH_ARGS \
         $GPT_ARGS \
@@ -35,7 +35,7 @@ if [ "$USE_NSYS" -eq 1 ]; then
         # echo "nsys failed. Retrying in 60 seconds..."
         echo "nsys returned: $ret, retrying in 60 seconds..." >>$LOGDIR/$RUNNAME/torchrun-rank${NODE_RANK}.log
         sleep 60
-        timeout "${MAX_RUNTIME_PER_EXPERIMENT}m" $NSYS_CMD torchrun $TORCHRUN_ARGS pretrain_gpt.py \
+        timeout "${MAX_RUNTIME_PER_EXPERIMENT}m" $NSYS_CMD torch.distributed.run $TORCHRUN_ARGS pretrain_gpt.py \
             $FIXED_ARGS \
             $SEARCH_ARGS \
             $GPT_ARGS \
@@ -60,7 +60,10 @@ if [ "$USE_NSYS" -eq 1 ]; then
     #     retry_counter=$((retry_counter + 1))
     # done
 else
-    timeout "${MAX_RUNTIME_PER_EXPERIMENT}m" torchrun $TORCHRUN_ARGS pretrain_gpt.py \
+    nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 | sudo tee "$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" >/dev/null &
+    dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
+
+    timeout "${MAX_RUNTIME_PER_EXPERIMENT}m" python -m torch.distributed.run $TORCHRUN_ARGS pretrain_gpt.py \
         $FIXED_ARGS \
         $SEARCH_ARGS \
         $GPT_ARGS \

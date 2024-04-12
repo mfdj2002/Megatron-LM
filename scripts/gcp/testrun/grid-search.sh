@@ -125,7 +125,7 @@ OUTPUT_ARGS="
 "
 
 ############# only for basic profiling runs:
-#USE_NSYS=0
+USE_NSYS=0
 # use for nvprof runs:
 # USE_NSYS=1
 
@@ -190,25 +190,8 @@ launch() {
             mkdir -p $LOGDIR/$RUNNAME
             echo \"\$(date +%y-%m-%d,%H:%M:%S) Docker running on node $addr...\"
             docker pull $IMAGE_NAME
-            if [ \"$USE_NSYS\" -eq 0 ]; then
-                nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 | sudo tee "$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" > /dev/null & pgid=$!
-                # nvidia_smi_pid=\$!
-                dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 --pgid=\$pgid &
-                # dool_pid=\$!
-            fi
             $docker_cmd || exit 1
             echo \"\$(date +%y-%m-%d,%H:%M:%S) Docker finished on node $addr...\"
-            if [ \"$USE_NSYS\" -eq 0 ]; then
-                kill -- -\$pgid
-                # sudo kill \"\$nvidia_smi_pid\" \"\$dool_pid\"
-                # ret=\$?
-                # echo \"sudo killed ret: \$ret\"
-                # if [ \"\$ret\" -ne 0 ]; then
-                #     sudo kill -9 \"\$nvidia_smi_pid\" \"\$dool_pid\"
-                #     echo \"sudo killed -9 ret: \$?\"
-                # fi
-            fi
-            echo \"\$(date +%y-%m-%d,%H:%M:%S) Exiting node $addr...\"
             " --zone $(gcloud compute instances list $(hostname) --format 'csv[no-heading](zone)') --quiet >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node${NODE_RANK}.log 2>&1 &
         pids+=("$!")
         NODE_RANK=$((NODE_RANK + 1))
@@ -224,11 +207,11 @@ launch() {
         wait "$pid"
         exit_status=$?
 
-        if [ $exit_status -eq 124 ]; then
-            echo "$(date +%y-%m-%d,%H:%M:%S) Node $rank in RUN $RUNNAME timed out. Sending sudo killall"
-            gcloud compute ssh $addr --command="sudo killall -9 nvidia-smi; pkill -f dool; docker stop \$(docker ps -q)" --zone $(gcloud compute instances list $(hostname) --format 'csv[no-heading](zone)') --quiet
-            failure_flag=1
-        fi
+        # if [ $exit_status -eq 124 ]; then
+        #     echo "$(date +%y-%m-%d,%H:%M:%S) Node $rank in RUN $RUNNAME timed out. Sending sudo killall"
+        #     gcloud compute ssh $addr --command="sudo killall -9 nvidia-smi; pkill -f dool; docker stop \$(docker ps -q)" --zone $(gcloud compute instances list $(hostname) --format 'csv[no-heading](zone)') --quiet
+        #     failure_flag=1
+        # fi
         if [ $exit_status -ne 0 ]; then
             echo "$(date +%y-%m-%d,%H:%M:%S) Node $rank in RUN $RUNNAME failed with exit status $exit_status."
             failure_flag=1
