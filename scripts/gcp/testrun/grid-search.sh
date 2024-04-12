@@ -56,7 +56,7 @@ WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 MASTER_ADDR=$(hostname)
 MASTER_PORT=6000
 
-ADDR_SUFFIX="${MASTER_ADDR#*.}"
+# ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
 # CHECKPOINT_PATH=${HOME}/checkpoints/${JOB_NAME}
 VOCAB_FILE=scripts/testrun/gpt2-vocab.json
@@ -137,6 +137,7 @@ launch() {
     local pids=()
 
     # for ((NODE_RANK = 0; NODE_RANK < $NNODES; NODE_RANK++)); do
+    NODE_RANK=0
     while IFS= read -r addr; do
         TORCHRUN_ARGS="
             --nproc_per_node $GPUS_PER_NODE \
@@ -211,6 +212,7 @@ launch() {
             exit 0
             " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node${NODE_RANK}.log 2>&1 &
         pids+=("$!")
+        NODE_RANK=$((NODE_RANK + 1))
     done <"$HOSTFILE"
     echo "$(date +%y-%m-%d,%H:%M:%S) Waiting for subprocesses to finish in RUN $RUNNAME..."
 
