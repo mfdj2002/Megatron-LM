@@ -227,7 +227,7 @@ launch() {
 
         if [ $exit_status -eq 124 ]; then
             echo "$(date +%y-%m-%d,%H:%M:%S) Node $rank in RUN $RUNNAME timed out. Sending sudo killall"
-            gcloud compute ssh $addr "sudo killall -9 nvidia-smi; sudo pkill -f dool; sudo docker stop \$(sudo docker ps -q)"
+            gcloud compute ssh $addr "sudo killall -9 nvidia-smi; pkill -f dool; docker stop \$(docker ps -q)"
             failure_flag=1
         fi
         if [ $exit_status -ne 0 ]; then
