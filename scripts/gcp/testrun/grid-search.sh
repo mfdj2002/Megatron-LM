@@ -186,25 +186,26 @@ launch() {
         #assuming all the instances are on the same zone...
         timeout $max_time gcloud compute ssh $addr --zone $(gcloud compute instances list $(hostname) --format 'csv[no-heading](zone)') --quiet \
             "
-            sudo mkdir -p $LOGDIR/$RUNNAME
+            mkdir -p $LOGDIR/$RUNNAME
             echo \"\$(date +%y-%m-%d,%H:%M:%S) Docker running on node $addr...\"
-            sudo docker pull $IMAGE_NAME
+            docker pull $IMAGE_NAME
             if [ \"$USE_NSYS\" -eq 0 ]; then
-                sudo nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 | sudo tee "$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" > /dev/null &
-                nvidia_smi_pid=\$!
-                sudo dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
-                dool_pid=\$!
+                nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 | sudo tee "$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" > /dev/null & pgid=$!
+                # nvidia_smi_pid=\$!
+                dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 --pgid=\$pgid &
+                # dool_pid=\$!
             fi
-            sudo $docker_cmd || exit 1
+            $docker_cmd || exit 1
             echo \"\$(date +%y-%m-%d,%H:%M:%S) Docker finished on node $addr...\"
             if [ \"$USE_NSYS\" -eq 0 ]; then
-                sudo kill \"\$nvidia_smi_pid\" \"\$dool_pid\"
-                ret=\$?
-                echo \"sudo killed ret: \$ret\"
-                if [ \"\$ret\" -ne 0 ]; then
-                    sudo kill -9 \"\$nvidia_smi_pid\" \"\$dool_pid\"
-                    echo \"sudo killed -9 ret: \$?\"
-                fi
+                kill -- -\$pgid
+                # sudo kill \"\$nvidia_smi_pid\" \"\$dool_pid\"
+                # ret=\$?
+                # echo \"sudo killed ret: \$ret\"
+                # if [ \"\$ret\" -ne 0 ]; then
+                #     sudo kill -9 \"\$nvidia_smi_pid\" \"\$dool_pid\"
+                #     echo \"sudo killed -9 ret: \$?\"
+                # fi
             fi
             echo \"\$(date +%y-%m-%d,%H:%M:%S) Exiting node $addr...\"
             exit 0
@@ -212,6 +213,9 @@ launch() {
         pids+=("$!")
     done <"$HOSTFILE"
     echo "$(date +%y-%m-%d,%H:%M:%S) Waiting for subprocesses to finish in RUN $RUNNAME..."
+
+    # nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 | sudo tee "\""$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv"\"" > /dev/null & PGID=\$!
+    # dool --more --output "\""$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv"\"" 5 --pgid=\$PGID &
 
     local failure_flag=0
     for rank in "${!pids[@]}"; do
