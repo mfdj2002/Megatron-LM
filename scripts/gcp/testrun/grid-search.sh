@@ -185,8 +185,8 @@ launch() {
         #8m for basic profiling runs, 10m for nvprof?
         #timeout "8m" ssh -n "$addr" \
         #assuming all the instances are on the same zone...
-        timeout $max_time gcloud compute ssh $addr --zone $(gcloud compute instances list $(hostname) --format 'csv[no-heading](zone)') --quiet \
-            "
+        timeout $max_time gcloud compute ssh $addr \
+            --command="
             mkdir -p $LOGDIR/$RUNNAME
             echo \"\$(date +%y-%m-%d,%H:%M:%S) Docker running on node $addr...\"
             docker pull $IMAGE_NAME
@@ -209,8 +209,7 @@ launch() {
                 # fi
             fi
             echo \"\$(date +%y-%m-%d,%H:%M:%S) Exiting node $addr...\"
-            exit 0
-            " >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node${NODE_RANK}.log 2>&1 &
+            " --zone $(gcloud compute instances list $(hostname) --format 'csv[no-heading](zone)') --quiet >$LOGDIR/$RUNNAME/orchestrator-log/ssh_node${NODE_RANK}.log 2>&1 &
         pids+=("$!")
         NODE_RANK=$((NODE_RANK + 1))
     done <"$HOSTFILE"
@@ -227,7 +226,7 @@ launch() {
 
         if [ $exit_status -eq 124 ]; then
             echo "$(date +%y-%m-%d,%H:%M:%S) Node $rank in RUN $RUNNAME timed out. Sending sudo killall"
-            gcloud compute ssh $addr "sudo killall -9 nvidia-smi; pkill -f dool; docker stop \$(docker ps -q)"
+            gcloud compute ssh $addr --command="sudo killall -9 nvidia-smi; pkill -f dool; docker stop \$(docker ps -q)" --zone $(gcloud compute instances list $(hostname) --format 'csv[no-heading](zone)') --quiet
             failure_flag=1
         fi
         if [ $exit_status -ne 0 ]; then
