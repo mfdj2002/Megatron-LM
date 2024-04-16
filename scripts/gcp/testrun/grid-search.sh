@@ -188,7 +188,8 @@ launch() {
         #assuming all the instances are on the same zone...
         timeout $max_time gcloud compute ssh $addr \
             --command="
-            mkdir -p $LOGDIR/$RUNNAME
+            sudo mkdir -p $LOGDIR/$RUNNAME
+            sudo chmod \$USER:\$USER $LOGDIR/$RUNNAME
             echo \"\$(date +%y-%m-%d,%H:%M:%S) Docker running on node $addr...\"
             docker pull $IMAGE_NAME
             $docker_cmd || exit 1
