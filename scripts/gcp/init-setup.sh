@@ -37,14 +37,7 @@ sudo update-grub
 # Generate SSH keys if not already present
 ##############################################################################
 
-# if [ $(hostname) ]
-# if hostname ends with -0, then is master node by default. So do ssh-keygen,
-ssh-keygen -t rsa -f ~/.ssh/gcp_rsa -C "jf3516@columbia.edu" -N '' -q
-gcloud compute project-info add-metadata --metadata-from-file ssh-keys=/home/jf3516/.ssh/gcp_rsa.pub
-
-#for non master nodes, just do this
-gcloud compute instances add-metadata $(hostname) --metadata block-project-ssh-keys=false --zone $(gcloud compute instances list $(hostname) --format 'csv[no-heading](zone)') -q
-
+# gcloud compute ssh megatron-gpt2-345m-1 --zone=us-central1-a --quiet
 ##############################################################################
 # mount the disk and change permission
 ##############################################################################
@@ -73,7 +66,10 @@ gcloud compute instances add-metadata $(hostname) --metadata block-project-ssh-k
 ##############################################################################
 
 # Update and upgrade the system
-sudo apt update && sudo apt install docker.io -y
+sudo rm /etc/apt/sources.list.d/kubernetes.list && sudo touch /etc/apt/sources.list.d/kubernetes.list -y &&
+	sudo apt install runc -y
+
+sudo apt-get install docker-ce-cli -y
 
 # Check if the docker group exists
 if ! getent group docker >/dev/null; then
@@ -95,9 +91,7 @@ distribution=$(
 	. /etc/os-release
 	echo $ID$VERSION_ID
 )
-curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-sudo apt-get update && sudo apt-get install -y nvidia-docker2
+
 sudo systemctl restart docker
 
 # # Move Docker data directory to /mnt/docker
@@ -134,12 +128,6 @@ sudo systemctl restart docker
 
 git config --global user.name mfdj2002
 git config --global user.email jf3516@columbia.edu
-
-git clone https://github.com/scottchiefbaker/dool &&
-	cd dool &&
-	python install.py &&
-	echo 'export PATH="$PATH:$HOME/bin"' >>~/.bashrc &&
-	dool --version
 
 # Reboot the system
 echo "Rebooting"
