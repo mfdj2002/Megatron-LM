@@ -28,13 +28,14 @@
 # # init_std=0.013
 
 # GPT-3 Small 125M
-model_size=0.125
-num_layers=12
-hidden_size=768
-num_attn_heads=12
-global_batch_size=256
-lr=6.0e-4
-min_lr=1.0e-6
+# MODEL_SIZE=0.125
+NUM_LAYERS=12
+HIDDEN_SIZE=768
+NUM_ATTN_HEADS=12
+MICRO_BATCH_SIZE=1
+LR=6.0e-4
+MIN_LR=1.0e-6
+SEQ_LEN=1024
 # init_std=0.02
 
 WORKDIR="/workspace/Megatron-LM"
