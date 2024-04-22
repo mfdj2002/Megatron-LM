@@ -1,8 +1,8 @@
 #!/bin/bash
 
-MODEL_SIZE=0.125
-export NNODES=2
-export GPUS_PER_NODE=2
+MODEL_SIZE=1.3
+export NNODES=1
+export GPUS_PER_NODE=4
 export USE_NSYS=0
 export JOB_NAME="gpt2-${MODEL_SIZE}B-$(date +%y%m%d%H%M%S)"
 export LOGDIR="/logs/${JOB_NAME}"
