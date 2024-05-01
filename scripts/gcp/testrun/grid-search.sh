@@ -181,7 +181,7 @@ launch() {
         # fi
         max_time="10m"
         if [ $counter -eq 0 ]; then
-            max_time="20m"
+            max_time="10m"
         fi
         #8m for basic profiling runs, 10m for nvprof?
         #timeout "8m" ssh -n "$addr" \
@@ -228,10 +228,12 @@ launch() {
     fi
 }
 
+USE_NSYS=0
+
 counter=0
 # for distribute_saved_activations in 0 1; do
-for USE_NSYS in 0 1; do
-    for global_batch_size in 32 64 128 256 512 1024; do
+#for USE_NSYS in 0 1; do
+    for micro_batch_size in 32 64 128 256 512 1024; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
         #     for no_clone_scatter_output_in_embedding in 0 1; do
@@ -242,8 +244,8 @@ for USE_NSYS in 0 1; do
             for tensor_size in $(powers_of_two $WORLD_SIZE); do
                 # for USE_NSYS in 0 1; do
                 # for cpu_init in 0 1; do
-                SEARCH_ARGS="--global-batch-size $global_batch_size"
-                RUNNAME="$(date +%y%m%d%H%M%S)"
+                SEARCH_ARGS="--micro-batch-size $micro_batch_size"
+                RUNNAME="$(date +%y%m%d%H%M%S)-mb${micro_batch_size}"
                 if [ $USE_NSYS -eq 1 ]; then
                     RUNNAME+="-nv_prof"
                 else
@@ -290,7 +292,7 @@ for USE_NSYS in 0 1; do
                 SEARCH_ARGS+=" --pipeline-model-parallel-size $pipeline_size --tensor-model-parallel-size $tensor_size"
                 RUNNAME+="-pp${pipeline_size}-tp${tensor_size}"
                 launch
-                sleep 30
+                sleep 10
                 counter=$((counter + 1))
 
                 # if [ $layers_per_virtual_stage -gt 1 ]; then
@@ -340,7 +342,7 @@ for USE_NSYS in 0 1; do
         # done
         # done
     done
-done
+#done
 # done
 counter=$((counter + 1))
 echo "Total number of runs: $counter"
