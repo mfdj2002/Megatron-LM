@@ -60,8 +60,8 @@ if [ "$USE_NSYS" -eq 1 ]; then
     #     retry_counter=$((retry_counter + 1))
     # done
 else
-    nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 5 | tee "$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" >/dev/null &
-    dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 5 &
+    nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.free,temperature.gpu,power.draw,pstate,pcie.link.gen.max,pcie.link.gen.current --format=csv -l 1 | tee "$LOGDIR/$RUNNAME/nvidia-smi-rank${NODE_RANK}.csv" >/dev/null &
+    dool --more --output "$LOGDIR/$RUNNAME/dool-rank${NODE_RANK}.csv" 1 &
 
     timeout "${MAX_RUNTIME_PER_EXPERIMENT}m" torchrun $TORCHRUN_ARGS pretrain_gpt.py \
         $FIXED_ARGS \

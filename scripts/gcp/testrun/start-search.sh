@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MODEL_SIZE=1.3
+MODEL_SIZE=0.76
 export NNODES=1
 export GPUS_PER_NODE=8
 #export USE_NSYS=0
