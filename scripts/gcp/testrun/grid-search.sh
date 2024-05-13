@@ -77,7 +77,7 @@ DATA_PATH=scripts/testrun/dataset/pile_gpt_train_text_document
 # Function to generate powers of two up to a maximum value
 powers_of_two() {
     local max_value=$1
-    local n=1
+    local n=2
     while [ $n -le $max_value ]; do #assuming using single strategy is suboptimal -le or -lt
         echo $n
         n=$((n * 2))
@@ -94,14 +94,15 @@ powers_of_two() {
 # --overlap-grad-reduce \
 # --overlap-param-gather \
 
-FIXED_ARGS="
---use-mcore-models \
+#--use-mcore-models --no-delay-grad-reduce
 
---no-delay-grad-reduce \
+FIXED_ARGS="
 --empty-unused-memory-level=1 \
 
 --exit-duration-in-mins $MAX_RUNTIME_PER_EXPERIMENT
 "
+
+
 
 GPT_ARGS="
     --num-layers $NUM_LAYERS \
@@ -244,14 +245,15 @@ USE_NSYS=0
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for micro_batch_size in 8 16 32 64 128 256 512; do
+for micro_batch_size in 32 64 128 256 512 1024; do #8 16
     # for recompute_activation in 0 1; do
     # for standalone_embedding in 0 1; do
     #     for no_clone_scatter_output_in_embedding in 0 1; do
     # for sequence_parallel in 0 1; do
     # for context_size in $(powers_of_two $WORLD_SIZE); do
     # for ((layers_per_virtual_stage = 1; layers_per_virtual_stage <= $NUM_LAYERS / 2; layers_per_virtual_stage++)); do
-    for pipeline_size in $(powers_of_two $WORLD_SIZE); do
+    #for pipeline_size in $(powers_of_two $WORLD_SIZE); do
+    pipeline_size=1   
         for tensor_size in $(powers_of_two $WORLD_SIZE); do
             # for USE_NSYS in 0 1; do
             # for cpu_init in 0 1; do
@@ -269,8 +271,8 @@ for micro_batch_size in 8 16 32 64 128 256 512; do
                 continue
             fi
             # if [ $recompute_activation -eq 1 ]; then
-            #     SEARCH_ARGS+=" --recompute-activations --recompute-granularity=selective"
-            #     RUNNAME+="-ra"
+            SEARCH_ARGS+=" --recompute-granularity=full --recompute-method=uniform --recompute-num-layers=24" #" --recompute-activations" #--recompute-granularity=selective"
+            RUNNAME+="-rematerialize"
             # fi
             # if [ $distribute_saved_activations -eq 1 ]; then
             #     if [ $tensor_size -eq 1 ]; then
@@ -345,7 +347,7 @@ for micro_batch_size in 8 16 32 64 128 256 512; do
             # done
             # done
         done
-    done
+    #done
     # done
     # done
     # done
