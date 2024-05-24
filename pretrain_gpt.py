@@ -42,9 +42,11 @@ def model_provider(pre_process=True, post_process=True) -> Union[GPTModel, megat
     """
     args = get_args()
 
+    device = torch.cuda.current_device()
     print_rank_0('building GPT model ...')
     config = core_transformer_config_from_args(get_args())
 
+    print(f"initial memory (should be close to 0): {torch.cuda.memory_allocated(device) / 1024**2} MB")
     if args.use_mcore_models:
         if args.spec is not None:
             transformer_layer_spec = import_module(args.spec)
@@ -74,6 +76,7 @@ def model_provider(pre_process=True, post_process=True) -> Union[GPTModel, megat
             pre_process=pre_process,
             post_process=post_process
         )
+    print(f"memory allocated after building GPT model: {torch.cuda.memory_allocated(device) / 1024 **2} MB")
 
     return model
 
@@ -137,12 +140,18 @@ def forward_step(data_iterator, model: GPTModel):
 
     # Get the batch.
     timers('batch-generator', log_level=2).start()
+    device = torch.cuda.current_device()
+    previous_memory = torch.cuda.memory_allocated(device)
     tokens, labels, loss_mask, attention_mask, position_ids = get_batch(
         data_iterator)
+    print(f"data memory consumption: {(torch.cuda.memory_allocated(device) - previous_memory) / 1024**2} MB")
     timers('batch-generator').stop()
 
+    print(f"memory used before forward: {torch.cuda.memory_allocated(device) / 1024**2} MB")
+    #with torch.no_grad():
     output_tensor = model(tokens, position_ids, attention_mask,
                           labels=labels)
+    print(f"memory used after forward: {torch.cuda.memory_allocated(device) / 1024**2} MB")
 
     return output_tensor, partial(loss_func, loss_mask)
 

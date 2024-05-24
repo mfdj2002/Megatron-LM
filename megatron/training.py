@@ -394,12 +394,18 @@ def get_model(model_provider_func, model_type=ModelType.encoder_or_decoder, wrap
                  for model_module in model])), flush=True)
 
     # GPU allocation.
+    device = torch.cuda.current_device()
+    initial_memory = torch.cuda.memory_allocated(device)
     for model_module in model:
         model_module.cuda(torch.cuda.current_device())
-
+    full_model_memory = torch.cuda.memory_allocated(device)
+    print(f"memory usage after loading fp32 model: {full_model_memory / 1024 **2} MB")
+    
     # Fp16 conversion.
     if args.fp16 or args.bf16:
         model = [Float16Module(model_module, args) for model_module in model]
+    fp16_model_memory = torch.cuda.memory_allocated(device)
+    print(f"memory usage after calling fp16 conversion: {fp16_model_memory / 1024 ** 2} MB")
 
     if wrap_with_ddp:
         config = get_model_config(model[0])
@@ -425,7 +431,10 @@ def get_model(model_provider_func, model_type=ModelType.encoder_or_decoder, wrap
 def get_optimizer_param_scheduler(optimizer):
     """Build the learning rate scheduler."""
     args = get_args()
-
+    
+    device = torch.cuda.current_device()
+    memory_before = torch.cuda.memory_allocated(device)
+    print(f"memory before getting scheduler: {memory_before / 1024 **2} MB")
     # Iteration-based training.
     if args.train_iters:
         if args.lr_decay_iters is None:
@@ -469,6 +478,7 @@ def get_optimizer_param_scheduler(optimizer):
         use_checkpoint_opt_param_scheduler=args.use_checkpoint_opt_param_scheduler,
         override_opt_param_scheduler=args.override_opt_param_scheduler)
 
+    print(f"memory after getting the scheduler: {torch.cuda.memory_allocated(device) / 1024 **2} MB")
     return opt_param_scheduler
 
 
@@ -522,8 +532,10 @@ def train_step(forward_step_func, data_iterator,
         # handled automatically by the optimizer after all-gathers finish.
         # Otherwise, zero the buffer.
         model_chunk.zero_grad_buffer(zero_buffer=(not args.use_distributed_optimizer))
+    print(f"memory used before optimizer zero grad: {torch.cuda.memory_allocated(torch.cuda.current_device()) / 1024**2} MB, max: {torch.cuda.max_memory_allocated(torch.cuda.current_device()) / 1024 ** 2} MB")
     optimizer.zero_grad()
 
+    print(f"memory used after optimizer zero grad: {torch.cuda.memory_allocated(torch.cuda.current_device()) / 1024**2} MB, max: {torch.cuda.max_memory_allocated(torch.cuda.current_device()) / 1024 ** 2} MB")
     # Forward pass.
     forward_backward_func = get_forward_backward_func()
     losses_reduced = forward_backward_func(
@@ -547,7 +559,10 @@ def train_step(forward_step_func, data_iterator,
 
     # Update parameters.
     timers('optimizer', log_level=1).start(barrier=args.barrier_with_L1_time)
+    device = torch.cuda.current_device()
+    print(f"memory consumed before optimizer step: {torch.cuda.memory_allocated(device)/1024**2} MB")
     update_successful, grad_norm, num_zeros_in_grad = optimizer.step(args, timers)
+    print(f"memory consumed after optimizer step: {torch.cuda.memory_allocated(device)/1024**2} MB")
     timers('optimizer').stop()
 
     # Vision momentum.
@@ -939,6 +954,12 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
             })
 
     while iteration < args.train_iters:
+        device = torch.cuda.current_device()
+
+        # Get the maximum memory allocated on the current device
+        memory_allocated = torch.cuda.memory_allocated(device)
+
+        print(f"Memory allocated before one step: {memory_allocated/1024**2} MB, max: {torch.cuda.max_memory_allocated(device)/1024**2} MB")
         if args.profile and \
            iteration == args.profile_step_start and \
            torch.distributed.get_rank() in args.profile_ranks:
@@ -967,7 +988,9 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                        optimizer,
                        opt_param_scheduler,
                        config)
+
         iteration += 1
+        print(f"Memory allocated after one complete step: {torch.cuda.memory_allocated(device)/1024**2} MB, max: {torch.cuda.max_memory_allocated(device)/1024**2} MB")
         batch_size = mpu.get_data_parallel_world_size() * \
                      args.micro_batch_size * \
                      get_num_microbatches()

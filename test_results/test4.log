@@ -1,0 +1,662 @@
+nohup: ignoring input
+Zarr-based strategies will not be registered because of missing packages
+using world size: 1, data-parallel size: 1, context-parallel size: 1 tensor-model-parallel size: 1, pipeline-model-parallel size: 1 
+setting global batch size to 1
+WARNING: Setting args.overlap_p2p_comm to False since non-interleaved schedule does not support overlapping p2p communication
+using torch.float16 for parameters ...
+------------------------ arguments ------------------------
+  accumulate_allreduce_grads_in_fp32 .............. False
+  adam_beta1 ...................................... 0.9
+  adam_beta2 ...................................... 0.999
+  adam_eps ........................................ 1e-08
+  add_bias_linear ................................. True
+  add_position_embedding .......................... True
+  add_qkv_bias .................................... False
+  adlr_autoresume ................................. False
+  adlr_autoresume_interval ........................ 1000
+  apply_layernorm_1p .............................. False
+  apply_query_key_layer_scaling ................... False
+  apply_residual_connection_post_layernorm ........ False
+  apply_rope_fusion ............................... True
+  async_tensor_model_parallel_allreduce ........... True
+  attention_dropout ............................... 0.1
+  attention_softmax_in_fp32 ....................... False
+  barrier_with_L1_time ............................ True
+  bert_binary_head ................................ True
+  bert_embedder_type .............................. megatron
+  bert_load ....................................... None
+  bf16 ............................................ False
+  bias_dropout_fusion ............................. True
+  bias_gelu_fusion ................................ True
+  bias_swiglu_fusion .............................. True
+  biencoder_projection_dim ........................ 0
+  biencoder_shared_query_context_model ............ False
+  block_data_path ................................. None
+  check_for_nan_in_loss_and_grad .................. True
+  classes_fraction ................................ 1.0
+  clip_grad ....................................... 1.0
+  clone_scatter_output_in_embedding ............... True
+  consumed_train_samples .......................... 0
+  consumed_valid_samples .......................... 0
+  context_parallel_size ........................... 1
+  data_cache_path ................................. None
+  data_parallel_random_init ....................... False
+  data_parallel_size .............................. 1
+  data_path ....................................... ['scripts/testrun/dataset/pile_gpt_train_text_document']
+  data_per_class_fraction ......................... 1.0
+  data_sharding ................................... True
+  dataloader_type ................................. single
+  decoder_num_layers .............................. None
+  decoder_seq_length .............................. None
+  delay_grad_reduce ............................... True
+  delay_param_gather .............................. False
+  dino_bottleneck_size ............................ 256
+  dino_freeze_last_layer .......................... 1
+  dino_head_hidden_size ........................... 2048
+  dino_local_crops_number ......................... 10
+  dino_local_img_size ............................. 96
+  dino_norm_last_layer ............................ False
+  dino_teacher_temp ............................... 0.07
+  dino_warmup_teacher_temp ........................ 0.04
+  dino_warmup_teacher_temp_epochs ................. 30
+  distribute_saved_activations .................... False
+  distributed_backend ............................. nccl
+  distributed_timeout_minutes ..................... 10
+  embedding_path .................................. None
+  empty_unused_memory_level ....................... 0
+  enable_one_logger ............................... False
+  encoder_num_layers .............................. 12
+  encoder_seq_length .............................. 1024
+  end_weight_decay ................................ 0.01
+  eod_mask_loss ................................... False
+  eval_interval ................................... 10
+  eval_iters ...................................... 10
+  evidence_data_path .............................. None
+  exit_duration_in_mins ........................... None
+  exit_interval ................................... None
+  exit_on_missing_checkpoint ...................... False
+  exit_signal_handler ............................. False
+  expert_model_parallel_size ...................... 1
+  ffn_hidden_size ................................. 3072
+  finetune ........................................ False
+  fp16 ............................................ True
+  fp16_lm_cross_entropy ........................... False
+  fp32_residual_connection ........................ False
+  fp8 ............................................. None
+  fp8_amax_compute_algo ........................... most_recent
+  fp8_amax_history_len ............................ 1
+  fp8_interval .................................... 1
+  fp8_margin ...................................... 0
+  fp8_wgrad ....................................... True
+  global_batch_size ............................... 1
+  gradient_accumulation_fusion .................... True
+  group_query_attention ........................... False
+  head_lr_mult .................................... 1.0
+  hidden_dropout .................................. 0.1
+  hidden_size ..................................... 768
+  hysteresis ...................................... 2
+  ict_head_size ................................... None
+  ict_load ........................................ None
+  img_h ........................................... 224
+  img_w ........................................... 224
+  indexer_batch_size .............................. 128
+  indexer_log_interval ............................ 1000
+  inference_batch_times_seqlen_threshold .......... 512
+  init_method_std ................................. 0.02
+  init_method_xavier_uniform ...................... False
+  initial_loss_scale .............................. 4294967296
+  iter_per_epoch .................................. 1250
+  kv_channels ..................................... 64
+  lazy_mpu_init ................................... None
+  load ............................................ None
+  local_rank ...................................... None
+  log_batch_size_to_tensorboard ................... False
+  log_interval .................................... 5
+  log_learning_rate_to_tensorboard ................ True
+  log_loss_scale_to_tensorboard ................... True
+  log_memory_to_tensorboard ....................... False
+  log_num_zeros_in_grad ........................... False
+  log_params_norm ................................. False
+  log_progress .................................... False
+  log_throughput .................................. False
+  log_timers_to_tensorboard ....................... False
+  log_validation_ppl_to_tensorboard ............... False
+  log_world_size_to_tensorboard ................... False
+  loss_scale ...................................... None
+  loss_scale_window ............................... 1000
+  lr .............................................. 0.0006
+  lr_decay_iters .................................. None
+  lr_decay_samples ................................ None
+  lr_decay_style .................................. linear
+  lr_warmup_fraction .............................. None
+  lr_warmup_init .................................. 0.0
+  lr_warmup_iters ................................. 0
+  lr_warmup_samples ............................... 0
+  make_vocab_size_divisible_by .................... 128
+  manual_gc ....................................... False
+  manual_gc_eval .................................. True
+  manual_gc_interval .............................. 0
+  mask_factor ..................................... 1.0
+  mask_prob ....................................... 0.15
+  mask_type ....................................... random
+  masked_softmax_fusion ........................... True
+  max_position_embeddings ......................... 1024
+  max_tokens_to_oom ............................... 12000
+  merge_file ...................................... scripts/testrun/gpt2-merges.txt
+  micro_batch_size ................................ 1
+  min_loss_scale .................................. 1.0
+  min_lr .......................................... 0.0
+  mock_data ....................................... False
+  moe_aux_loss_coeff .............................. 0.0
+  moe_grouped_gemm ................................ False
+  moe_input_jitter_eps ............................ None
+  moe_router_load_balancing_type .................. aux_loss
+  moe_router_topk ................................. 2
+  moe_token_dropping .............................. False
+  moe_z_loss_coeff ................................ None
+  nccl_communicator_config_path ................... None
+  no_load_optim ................................... None
+  no_load_rng ..................................... None
+  no_persist_layer_norm ........................... False
+  no_save_optim ................................... None
+  no_save_rng ..................................... None
+  norm_epsilon .................................... 1e-05
+  normalization ................................... LayerNorm
+  num_attention_heads ............................. 12
+  num_channels .................................... 3
+  num_classes ..................................... 1000
+  num_experts ..................................... None
+  num_layers ...................................... 12
+  num_layers_per_virtual_pipeline_stage ........... None
+  num_query_groups ................................ 1
+  num_workers ..................................... 2
+  one_logger_entity ............................... hwinf_dcm
+  one_logger_project .............................. e2e-tracking
+  one_logger_run_name ............................. None
+  onnx_safe ....................................... None
+  openai_gelu ..................................... False
+  optimizer ....................................... adam
+  output_bert_embeddings .......................... False
+  overlap_grad_reduce ............................. False
+  overlap_p2p_comm ................................ False
+  overlap_param_gather ............................ False
+  override_opt_param_scheduler .................... False
+  params_dtype .................................... torch.float16
+  patch_dim ....................................... 16
+  perform_initialization .......................... True
+  pipeline_model_parallel_size .................... 1
+  pipeline_model_parallel_split_rank .............. None
+  position_embedding_type ......................... learned_absolute
+  profile ......................................... False
+  profile_ranks ................................... [0]
+  profile_step_end ................................ 12
+  profile_step_start .............................. 10
+  query_in_block_prob ............................. 0.1
+  rampup_batch_size ............................... None
+  rank ............................................ 0
+  recompute_granularity ........................... None
+  recompute_method ................................ None
+  recompute_num_layers ............................ None
+  reset_attention_mask ............................ False
+  reset_position_ids .............................. False
+  retriever_report_topk_accuracies ................ []
+  retriever_score_scaling ......................... False
+  retriever_seq_length ............................ 256
+  retro_add_retriever ............................. False
+  retro_attention_gate ............................ 1
+  retro_cyclic_train_iters ........................ None
+  retro_encoder_attention_dropout ................. 0.1
+  retro_encoder_hidden_dropout .................... 0.1
+  retro_encoder_layers ............................ 2
+  retro_num_neighbors ............................. 2
+  retro_num_retrieved_chunks ...................... 2
+  retro_return_doc_ids ............................ False
+  retro_verify_neighbor_count ..................... True
+  retro_workdir ................................... None
+  rotary_interleaved .............................. False
+  rotary_percent .................................. 1.0
+  rotary_seq_len_interpolation_factor ............. None
+  sample_rate ..................................... 1.0
+  save ............................................ scripts/gcp/testrun/test
+  save_interval ................................... 10
+  scatter_gather_tensors_in_pipeline .............. True
+  seed ............................................ 1234
+  seq_length ...................................... 1024
+  sequence_parallel ............................... False
+  sgd_momentum .................................... 0.9
+  short_seq_prob .................................. 0.1
+  skip_train ...................................... False
+  spec ............................................ None
+  split ........................................... 949,50,1
+  squared_relu .................................... False
+  standalone_embedding_stage ...................... False
+  start_weight_decay .............................. 0.01
+  swiglu .......................................... False
+  swin_backbone_type .............................. tiny
+  tensor_model_parallel_size ...................... 1
+  tensorboard_dir ................................. None
+  tensorboard_log_interval ........................ 1
+  tensorboard_queue_size .......................... 1000
+  test_data_path .................................. None
+  timing_log_level ................................ 0
+  timing_log_option ............................... minmax
+  titles_data_path ................................ None
+  tokenizer_model ................................. None
+  tokenizer_type .................................. GPT2BPETokenizer
+  tp_comm_bulk_dgrad .............................. True
+  tp_comm_bulk_wgrad .............................. True
+  tp_comm_overlap ................................. False
+  tp_comm_overlap_cfg ............................. None
+  tp_comm_split_ag ................................ True
+  tp_comm_split_rs ................................ True
+  train_data_path ................................. None
+  train_iters ..................................... 10
+  train_samples ................................... None
+  transformer_impl ................................ local
+  transformer_pipeline_model_parallel_size ........ 1
+  untie_embeddings_and_output_weights ............. False
+  use_checkpoint_args ............................. False
+  use_checkpoint_opt_param_scheduler .............. False
+  use_cpu_initialization .......................... None
+  use_distributed_optimizer ....................... False
+  use_flash_attn .................................. False
+  use_mcore_models ................................ False
+  use_one_sent_docs ............................... False
+  use_ring_exchange_p2p ........................... False
+  use_rotary_position_embeddings .................. False
+  valid_data_path ................................. None
+  variable_seq_lengths ............................ False
+  virtual_pipeline_model_parallel_size ............ None
+  vision_backbone_type ............................ vit
+  vision_pretraining .............................. False
+  vision_pretraining_type ......................... classify
+  vocab_extra_ids ................................. 0
+  vocab_file ...................................... scripts/testrun/gpt2-vocab.json
+  vocab_size ...................................... None
+  wandb_exp_name .................................. 
+  wandb_project ................................... 
+  wandb_save_dir .................................. 
+  weight_decay .................................... 0.01
+  weight_decay_incr_style ......................... constant
+  world_size ...................................... 1
+-------------------- end of arguments ---------------------
+setting number of micro-batches to constant 1
+> building GPT2BPETokenizer tokenizer ...
+ > padded vocab (size: 50257) with 47 dummy tokens (new size: 50304)
+> initializing torch distributed ...
+make: Entering directory '/workspace/Megatron-LM/megatron/core/datasets'
+make: Nothing to be done for 'default'.
+make: Leaving directory '/workspace/Megatron-LM/megatron/core/datasets'
+> initialized tensor model parallel with size 1
+> initialized pipeline model parallel with size 1
+> setting random seeds to 1234 ...
+> compiling dataset index builder ...
+>>> done with dataset index builder. Compilation time: 0.047 seconds
+> compiling and loading fused kernels ...
+>>> done with compiling and loading fused kernels. Compilation time: 0.882 seconds
+time to initialize megatron (seconds): 2.729
+[after megatron is initialized] datetime: 2024-05-24 03:32:29 
+building GPT model ...
+initial memory (should be close to 0): 0.0009765625 MB
+memory allocated after building GPT model: 241.4091796875 MB
+ > number of parameters on (tensor, pipeline) model parallel rank (0, 0): 124475904
+memory usage after loading fp32 model: 244.6806640625 MB
+memory usage after calling fp16 conversion: 243.482421875 MB
+INFO:megatron.core.distributed.grad_buffer:Number of buckets for gradient all-reduce / reduce-scatter: 1
+INFO:megatron.core.distributed.grad_buffer:Params for bucket 1 (124475904 elements):
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.final_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.embedding.position_embeddings.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.post_attention_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.11.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.9.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.mlp.dense_h_to_4h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.3.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.final_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.post_attention_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.1.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.0.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.self_attention.dense.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.embedding.word_embeddings.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.8.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.self_attention.query_key_value.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.5.input_norm.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.input_norm.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.self_attention.query_key_value.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.10.mlp.dense_4h_to_h.weight
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.7.mlp.dense_4h_to_h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.6.mlp.dense_h_to_4h.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.4.self_attention.dense.bias
+INFO:megatron.core.distributed.grad_buffer:    module.language_model.encoder.layers.2.self_attention.dense.weight
+memory before initializing optimizers: 504870912
+memory after initializing optimizers: 1004482048
+memory before getting scheduler: 1004482048
+> learning rate decay style: linear
+memory after getting the scheduler: <function memory_allocated at 0x7f8c411dd940>
+[after model, optimizer, and learning rate scheduler are built] datetime: 2024-05-24 03:32:29 
+> building train, validation, and test datasets ...
+ > datasets target sizes (minimum size):
+    train:      10
+    validation: 20
+    test:       10
+INFO:megatron.core.datasets.blended_megatron_dataset_config:mock = False
+INFO:megatron.core.datasets.blended_megatron_dataset_config:Let split_matrix = [(0, 0.949), (0.949, 0.999), (0.999, 1.0)]
+> building train, validation, and test datasets for GPT ...
+INFO:megatron.core.datasets.indexed_dataset:Load the _IndexReader from scripts/testrun/dataset/pile_gpt_train_text_document.idx
+INFO:megatron.core.datasets.indexed_dataset:	Extract the sequence lengths
+INFO:megatron.core.datasets.indexed_dataset:	Extract the sequence pointers
+INFO:megatron.core.datasets.indexed_dataset:	Extract the document indices
+INFO:megatron.core.datasets.indexed_dataset:> total number of sequences: 27248
+INFO:megatron.core.datasets.indexed_dataset:> total number of documents: 27248
+debug: cache_hit: True
+INFO:megatron.core.datasets.gpt_dataset:Load the GPTDataset train indices
+INFO:megatron.core.datasets.gpt_dataset:	Load the document index from GPTDataset-document_index.npy
+INFO:megatron.core.datasets.gpt_dataset:	Load the sample index from GPTDataset-sample_index.npy
+INFO:megatron.core.datasets.gpt_dataset:	Load the shuffle index from GPTDataset-shuffle_index.npy
+INFO:megatron.core.datasets.gpt_dataset:> total number of samples: 120909
+INFO:megatron.core.datasets.gpt_dataset:> total number of epochs: 1
+debug: cache_hit: True
+INFO:megatron.core.datasets.gpt_dataset:Load the GPTDataset valid indices
+INFO:megatron.core.datasets.gpt_dataset:	Load the document index from GPTDataset-document_index.npy
+INFO:megatron.core.datasets.gpt_dataset:	Load the sample index from GPTDataset-sample_index.npy
+INFO:megatron.core.datasets.gpt_dataset:	Load the shuffle index from GPTDataset-shuffle_index.npy
+INFO:megatron.core.datasets.gpt_dataset:> total number of samples: 120909
+INFO:megatron.core.datasets.gpt_dataset:> total number of epochs: 1
+debug: cache_hit: True
+INFO:megatron.core.datasets.gpt_dataset:Load the GPTDataset test indices
+INFO:megatron.core.datasets.gpt_dataset:	Load the document index from GPTDataset-document_index.npy
+INFO:megatron.core.datasets.gpt_dataset:	Load the sample index from GPTDataset-sample_index.npy
+INFO:megatron.core.datasets.gpt_dataset:	Load the shuffle index from GPTDataset-shuffle_index.npy
+INFO:megatron.core.datasets.gpt_dataset:> total number of samples: 120909
+INFO:megatron.core.datasets.gpt_dataset:> total number of epochs: 1
+> finished creating GPT datasets ...
+[after dataloaders are built] datetime: 2024-05-24 03:32:29 
+done with setup ...
+(min, max) time across ranks (ms):
+    model-and-optimizer-setup ......................: (85.72, 85.72)
+    train/valid/test-data-iterators-setup ..........: (123.03, 123.03)
+training ...
+[before the start of training step] datetime: 2024-05-24 03:32:29 
+Memory allocated on device 0 before forward: 1004482048, maximum: 1008715264
+memory consumption before optimizer zero grad: 957.94873046875 MB, max: 961.98583984375 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2228.048828125 MB
+memory used after backward: 998.2001953125 MB
+memory consumed before optimizer step: 998.19921875 MB
+memory consumed after optimizer step: 1475.162109375 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2523.83251953125 MB
+Memory allocated on device 0 before forward: 1546819584, maximum: 2646430208
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2523.83251953125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+Memory allocated on device 0 before forward: 1546819584, maximum: 2655474688
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2532.4580078125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+Memory allocated on device 0 before forward: 1546819584, maximum: 2655474688
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2532.4580078125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+Memory allocated on device 0 before forward: 1546819584, maximum: 2655474688
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2532.4580078125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+ iteration        5/      10 | consumed samples:            5 | elapsed time per iteration (ms): 363.5 | learning rate: 6.000E-04 | global batch size:     1 | loss scale: 268435456.0 | number of skipped iterations:   5 | number of nan iterations:   0 |
+[Rank 0] (after 5 iterations) memory (MB) | allocated: 1475.162109375 | max allocated: 2532.4580078125 | reserved: 2590.0 | max reserved: 2590.0
+Memory allocated on device 0 before forward: 1546819584, maximum: 2655474688
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2532.4580078125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+Memory allocated on device 0 before forward: 1546819584, maximum: 2655474688
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2532.4580078125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+Memory allocated on device 0 before forward: 1546819584, maximum: 2655474688
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2532.4580078125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+Memory allocated on device 0 before forward: 1546819584, maximum: 2655474688
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2532.4580078125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+Memory allocated on device 0 before forward: 1546819584, maximum: 2655474688
+memory consumption before optimizer zero grad: 1475.162109375 MB, max: 2532.4580078125 MB
+data memory consumption: 1.02734375 MB
+memory used when starting backward step: 2236.67431640625 MB
+memory used after backward: 998.20068359375 MB
+memory consumed before optimizer step: 998.19970703125 MB
+memory consumed after optimizer step: 1475.16259765625 MB
+Memory allocated after one complete step: 1475.162109375 MB, max: 2532.4580078125 MB
+ iteration       10/      10 | consumed samples:           10 | elapsed time per iteration (ms): 60.2 | learning rate: 6.000E-04 | global batch size:     1 | loss scale: 8388608.0 | number of skipped iterations:   5 | number of nan iterations:   0 |
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+data memory consumption: 1.02734375 MB
+(min, max) time across ranks (ms):
+    evaluate .......................................: (578.20, 578.20)
+----------------------------------------------------------------------------------------------
+ validation loss at iteration 10 | lm loss value: 1.099999E+01 | lm loss PPL: 5.987363E+04 | 
+----------------------------------------------------------------------------------------------
+saving checkpoint at iteration      10 to scripts/gcp/testrun/test
+  successfully saved checkpoint at iteration      10 to scripts/gcp/testrun/test
+(min, max) time across ranks (ms):
+    save-checkpoint ................................: (5305.39, 5305.39)
+[after training is done] datetime: 2024-05-24 03:32:37 
+saving checkpoint at iteration      10 to scripts/gcp/testrun/test
+  successfully saved checkpoint at iteration      10 to scripts/gcp/testrun/test
+Evaluating on 10 samples
+Evaluating iter 1/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 2/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 3/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 4/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 5/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 6/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 7/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 8/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 9/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 10/10
+data memory consumption: 1.02734375 MB
+(min, max) time across ranks (ms):
+    evaluate .......................................: (284.59, 284.59)
+----------------------------------------------------------------------------------------------------------------
+ validation loss at iteration 10 on validation set | lm loss value: 1.094357E+01 | lm loss PPL: 5.658907E+04 | 
+----------------------------------------------------------------------------------------------------------------
+Evaluating on 10 samples
+Evaluating iter 1/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 2/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 3/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 4/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 5/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 6/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 7/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 8/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 9/10
+data memory consumption: 1.02734375 MB
+Evaluating iter 10/10
+data memory consumption: 1.02734375 MB
+(min, max) time across ranks (ms):
+    evaluate .......................................: (295.26, 295.26)
+----------------------------------------------------------------------------------------------------------
+ validation loss at iteration 10 on test set | lm loss value: 1.099999E+01 | lm loss PPL: 5.987363E+04 | 
+----------------------------------------------------------------------------------------------------------
+/usr/local/lib/python3.8/dist-packages/torch/distributed/distributed_c10d.py:2603: UserWarning: torch.distributed._all_gather_base is a private function and will be deprecated. Please use torch.distributed.all_gather_into_tensor instead.
+  warnings.warn(

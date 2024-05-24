@@ -214,9 +214,15 @@ def get_megatron_optimizer(
     moe_param_groups = list(filter(lambda g: g['is_expert_parallel'], param_groups))
 
     # Create optimizers.
+    import torch
+    device = torch.cuda.current_device()
+    memory_before_optimizer = torch.cuda.memory_allocated(device)
+    print(f"memory before initializing optimizers: {memory_before_optimizer / 1024 ** 2} MB")
     optimizers = [
         get_megatron_optimizer_based_on_param_groups(dense_param_groups, per_model_grad_buffers)
     ]
+    memory_after_optimizer = torch.cuda.memory_allocated(device)
+    print(f"memory after initializing optimizers: {memory_after_optimizer / 1024 ** 2} MB")
     if len(moe_param_groups):
         optimizers.append(get_megatron_optimizer_based_on_param_groups(moe_param_groups))
 

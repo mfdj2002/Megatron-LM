@@ -250,6 +250,8 @@ def backward_step(input_tensor, output_tensor, output_tensor_grad, model_type, c
     if config.timers is not None:
         config.timers('backward-compute', log_level=2).start()
 
+    device = torch.cuda.current_device()
+    print(f"memory used before backward: {torch.cuda.memory_allocated(device)/1024**2} MB")
     # Retain the grad on the input_tensor.
     unwrap_input_tensor_grad = False
     if not isinstance(input_tensor, list):
@@ -297,6 +299,8 @@ def backward_step(input_tensor, output_tensor, output_tensor_grad, model_type, c
 
     if config.timers is not None:
         config.timers('backward-compute').stop()
+
+    print(f"memory used after backward: {torch.cuda.memory_allocated(device)/1024**2} MB")
 
     return input_tensor_grad
 
