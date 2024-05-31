@@ -254,8 +254,8 @@ USE_NSYS=0
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for global_batch_size in 32; do #8 16
-    for num_microbatches in 4 8 16 32; do
+for global_batch_size in 128; do #8 16
+    for num_microbatches in 1 2 4 8; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
         #     for no_clone_scatter_output_in_embedding in 0 1; do
