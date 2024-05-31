@@ -243,16 +243,16 @@ USE_NSYS=0
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for global_batch_size in 32 64 128 256 512 1024; do #8 16
-    for num_microbatches in 1 2 4 8 16 32; do
+for global_batch_size in 32; do #8 16
+    for num_microbatches in 4 8 16 32; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
         #     for no_clone_scatter_output_in_embedding in 0 1; do
         # for sequence_parallel in 0 1; do
         # for context_size in $(powers_of_two $WORLD_SIZE); do
         # for ((layers_per_virtual_stage = 1; layers_per_virtual_stage <= $NUM_LAYERS / 2; layers_per_virtual_stage++)); do
-        for pipeline_size in $(powers_of_two $WORLD_SIZE); do
-            for tensor_size in $(powers_of_two $WORLD_SIZE); do
+        for pipeline_size in 16; do
+            for tensor_size in 1; do
                 # for USE_NSYS in 0 1; do
                 # for cpu_init in 0 1; do
                 if [ $((pipeline_size * tensor_size)) -gt $WORLD_SIZE ]; then
@@ -262,7 +262,7 @@ for global_batch_size in 32 64 128 256 512 1024; do #8 16
                 if [ $micro_batch_size -lt 1 ]; then
                     continue
                 fi
-                SEARCH_ARGS="--global-batch-size $global_batch_size --micro-batch-size $micro_batch_size"
+                SEARCH_ARGS="--micro-batch-size $micro_batch_size"
                 RUNNAME="$(date +%y%m%d%H%M%S)-gb${global_batch_size}-mb${micro_batch_size}"
                 if [ $USE_NSYS -eq 1 ]; then
                     RUNNAME+="-nv_prof"
