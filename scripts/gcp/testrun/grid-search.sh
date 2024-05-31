@@ -18,6 +18,17 @@
 # INIT_STD=0.008
 # SEQ_LEN=1024
 
+## GPT-3 2.7B
+# model_size=2.7
+NUM_LAYERS=32
+HIDDEN_SIZE=2560
+NUM_ATTN_HEADS=32
+# global_batch_size=512
+LR=1.6e-4
+MIN_LR=1.0e-6
+SEQ_LEN=1024
+# init_std=0.011
+
 # # GPT-3 1.3B
 # NUM_LAYERS=24
 # HIDDEN_SIZE=2048
@@ -29,12 +40,12 @@
 # # init_std=0.013
 
 # GPT-3 Large 760M
-NUM_LAYERS=24
-HIDDEN_SIZE=1536
-NUM_ATTN_HEADS=16
-LR=2.5e-4
-MIN_LR=1.0e-6
-SEQ_LEN=1024
+#NUM_LAYERS=24
+#HIDDEN_SIZE=1536
+#NUM_ATTN_HEADS=16
+#LR=2.5e-4
+#MIN_LR=1.0e-6
+#SEQ_LEN=1024
 # init_std=0.015
 
 # GPT-3 Small 125M
@@ -273,8 +284,8 @@ for global_batch_size in 32; do #8 16
                 #     continue
                 # fi
                 # if [ $recompute_activation -eq 1 ]; then
-                SEARCH_ARGS+=" --recompute-granularity=full --recompute-method=uniform --recompute-num-layers=$(($NUM_LAYERS / $pipeline_size))" #" --recompute-activations" #--recompute-granularity=selective"
-                RUNNAME+="-rm"
+                #SEARCH_ARGS+=" --recompute-granularity=full --recompute-method=uniform --recompute-num-layers=$(($NUM_LAYERS / $pipeline_size))" #" --recompute-activations" #--recompute-granularity=selective"
+                #RUNNAME+="-rm"
                 # fi
                 # if [ $distribute_saved_activations -eq 1 ]; then
                 #     if [ $tensor_size -eq 1 ]; then

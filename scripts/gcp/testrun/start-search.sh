@@ -1,7 +1,7 @@
 #!/bin/bash
 
-MODEL_SIZE=0.76
-export NNODES=1
+MODEL_SIZE=2.7
+export NNODES=2
 export GPUS_PER_NODE=8
 #export USE_NSYS=0
 export JOB_NAME="gpt2-${MODEL_SIZE}B-$(date +%y%m%d%H%M%S)"
