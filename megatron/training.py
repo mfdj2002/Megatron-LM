@@ -211,7 +211,7 @@ def pretrain(train_valid_test_dataset_provider,
 
     # Model, optimizer, and learning rate.
     timers('model-and-optimizer-setup', log_level=0).start(barrier=True)
-    model, optimizer, opt_param_scheduler = setup_model_and_optimizer(
+    model = setup_model_and_optimizer(
         model_provider, model_type)
 
     timers('model-and-optimizer-setup').stop()
@@ -256,33 +256,33 @@ def pretrain(train_valid_test_dataset_provider,
         if args.do_train and args.train_iters > 0:
             iteration, num_floating_point_operations_so_far = train(
                 forward_step_func,
-                model, optimizer, opt_param_scheduler,
+                model, None, None,
                 train_data_iterator, valid_data_iterator,
                 process_non_loss_data_func, config)
 
         print_datetime('after training is done')
 
-        if args.save and iteration != 0:
-            save_checkpoint(iteration, model, optimizer, opt_param_scheduler,
-                            num_floating_point_operations_so_far)
+        # if args.save and iteration != 0:
+        #     save_checkpoint(iteration, model, optimizer, opt_param_scheduler,
+        #                     num_floating_point_operations_so_far)
     else:
         print_rank_0('skipping training (--skip-train is on) ...')
 
         iteration = args.iteration
 
-    if args.do_valid:
-        prefix = f'iteration {iteration} on validation set'
-        evaluate_and_print_results(prefix, forward_step_func,
-                                   valid_data_iterator, model,
-                                   iteration, process_non_loss_data_func, config,
-                                   verbose=True, write_to_tensorboard=not args.skip_train)
+    # if args.do_valid:
+    #     prefix = f'iteration {iteration} on validation set'
+    #     evaluate_and_print_results(prefix, forward_step_func,
+    #                                valid_data_iterator, model,
+    #                                iteration, process_non_loss_data_func, config,
+    #                                verbose=True, write_to_tensorboard=not args.skip_train)
 
-    if args.do_test:
-        prefix = f'iteration {iteration} on test set'
-        evaluate_and_print_results(prefix, forward_step_func,
-                                   test_data_iterator, model,
-                                   iteration, process_non_loss_data_func, config,
-                                   verbose=True, write_to_tensorboard=not args.skip_train)
+    # if args.do_test:
+    #     prefix = f'iteration {iteration} on test set'
+    #     evaluate_and_print_results(prefix, forward_step_func,
+    #                                test_data_iterator, model,
+    #                                iteration, process_non_loss_data_func, config,
+    #                                verbose=True, write_to_tensorboard=not args.skip_train)
 
 
 
@@ -483,30 +483,30 @@ def setup_model_and_optimizer(model_provider_func,
     model = get_model(model_provider_func, model_type)
     unwrapped_model = unwrap_model(model)
 
-    optimizer = get_megatron_optimizer(model, no_wd_decay_cond,
-                                       scale_lr_cond, lr_mult)
-    opt_param_scheduler = get_optimizer_param_scheduler(optimizer)
+    # optimizer = get_megatron_optimizer(model, no_wd_decay_cond,
+    #                                    scale_lr_cond, lr_mult)
+    # opt_param_scheduler = get_optimizer_param_scheduler(optimizer)
 
-    if args.load is not None:
-        timers = get_timers()
-        timers('load-checkpoint', log_level=0).start(barrier=True)
-        args.iteration, args.num_floating_point_operations_so_far = load_checkpoint(
-            model, optimizer, opt_param_scheduler)
-        timers('load-checkpoint').stop(barrier=True)
-        timers.log(['load-checkpoint'])
-    else:
-        args.iteration = 0
-        args.num_floating_point_operations_so_far = 0
+    # if args.load is not None:
+    #     timers = get_timers()
+    #     timers('load-checkpoint', log_level=0).start(barrier=True)
+    #     args.iteration, args.num_floating_point_operations_so_far = load_checkpoint(
+    #         model, optimizer, opt_param_scheduler)
+    #     timers('load-checkpoint').stop(barrier=True)
+    #     timers.log(['load-checkpoint'])
+    # else:
+    args.iteration = 0
+    args.num_floating_point_operations_so_far = 0
 
     # get model without FP16 and/or DDP wrappers
     if args.iteration == 0 and len(unwrapped_model) == 1 \
         and hasattr(unwrapped_model[0], 'init_state_dict_from_bert'):
         print_rank_0("Initializing ICT from pretrained BERT model")
         unwrapped_model[0].init_state_dict_from_bert()
-        if args.fp16:
-            optimizer.reload_model_params()
+        # if args.fp16:
+        #     optimizer.reload_model_params()
 
-    return model, optimizer, opt_param_scheduler
+    return model#, optimizer, opt_param_scheduler
 
 
 
@@ -522,7 +522,7 @@ def train_step(forward_step_func, data_iterator,
         # handled automatically by the optimizer after all-gathers finish.
         # Otherwise, zero the buffer.
         model_chunk.zero_grad_buffer(zero_buffer=(not args.use_distributed_optimizer))
-    optimizer.zero_grad()
+    #optimizer.zero_grad()
 
     # Forward pass.
     forward_backward_func = get_forward_backward_func()
@@ -546,9 +546,9 @@ def train_step(forward_step_func, data_iterator,
         unwrapped_model.cancel_gradients_last_layer(args.curr_iteration)
 
     # Update parameters.
-    timers('optimizer', log_level=1).start(barrier=args.barrier_with_L1_time)
-    update_successful, grad_norm, num_zeros_in_grad = optimizer.step(args, timers)
-    timers('optimizer').stop()
+    # timers('optimizer', log_level=1).start(barrier=args.barrier_with_L1_time)
+    # update_successful, grad_norm, num_zeros_in_grad = optimizer.step(args, timers)
+    # timers('optimizer').stop()
 
     # Vision momentum.
     if args.vision_pretraining and args.vision_pretraining_type == "dino":
@@ -556,14 +556,14 @@ def train_step(forward_step_func, data_iterator,
         unwrapped_model.update_momentum(args.curr_iteration)
 
     # Update learning rate.
-    if update_successful:
-        increment = get_num_microbatches() * \
-                    args.micro_batch_size * \
-                    args.data_parallel_size
-        opt_param_scheduler.step(increment=increment)
-        skipped_iter = 0
-    else:
-        skipped_iter = 1
+    # if update_successful:
+    # increment = get_num_microbatches() * \
+    #             args.micro_batch_size * \
+    #             args.data_parallel_size
+    #opt_param_scheduler.step(increment=increment)
+    skipped_iter = 0
+    # else:
+    #     skipped_iter = 1
 
     # Empty unused memory.
     if args.empty_unused_memory_level >= 2:
@@ -575,8 +575,8 @@ def train_step(forward_step_func, data_iterator,
         for key in losses_reduced[0]:
             losses_reduced_for_key = [x[key] for x in losses_reduced]
             loss_reduced[key] = sum(losses_reduced_for_key) / len(losses_reduced_for_key)
-        return loss_reduced, skipped_iter, grad_norm, num_zeros_in_grad
-    return {}, skipped_iter, grad_norm, num_zeros_in_grad
+        return loss_reduced, skipped_iter, 0, 0
+    return {}, skipped_iter, 0, 0
 
 
 def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
@@ -881,7 +881,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
     num_floating_point_operations_so_far = args.num_floating_point_operations_so_far
 
     # Setup some training config params
-    config.grad_scale_func = optimizer.scale_loss
+    #config.grad_scale_func = optimizer.scale_loss
     config.timers = timers
     if isinstance(model[0], DDP) and args.overlap_grad_reduce:
         assert config.no_sync_func is None, \
@@ -895,8 +895,8 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
             if len(model) == 1:
                 config.grad_sync_func = config.grad_sync_func[0]
     if args.overlap_param_gather and args.delay_param_gather:
-        config.param_sync_func = [lambda x: optimizer.finish_param_sync(model_index, x)
-                                  for model_index in range(len(model))]
+        # config.param_sync_func = [lambda x: optimizer.finish_param_sync(model_index, x)
+        #                           for model_index in range(len(model))]
         if len(model) == 1:
             config.param_sync_func = config.param_sync_func[0]
     config.finalize_model_grads_func = finalize_model_grads
@@ -953,9 +953,9 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
         if get_num_microbatches() != num_microbatches and iteration != 0:
             assert get_num_microbatches() > num_microbatches, \
                 "number of microbatches should be increasing due to batch size rampup"
-            save_checkpoint_and_time(iteration, model, optimizer,
-                                     opt_param_scheduler,
-                                     num_floating_point_operations_so_far)
+            # save_checkpoint_and_time(iteration, model, optimizer,
+            #                          opt_param_scheduler,
+            #                          num_floating_point_operations_so_far)
         num_microbatches = get_num_microbatches()
         update_num_microbatches(args.consumed_train_samples, consistency_check=True)
 
@@ -964,8 +964,8 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
             train_step(forward_step_func,
                        train_data_iterator,
                        model,
-                       optimizer,
-                       opt_param_scheduler,
+                       None,
+                       None,
                        config)
         iteration += 1
         batch_size = mpu.get_data_parallel_world_size() * \
@@ -975,7 +975,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
         num_floating_point_operations_so_far += num_floating_point_operations(args, batch_size)
 
         # Logging.
-        loss_scale = optimizer.get_loss_scale().item()
+        #loss_scale = optimizer.get_loss_scale().item()
         params_norm = None
         if args.log_params_norm:
             params_norm = calc_params_l2_norm(model)
@@ -984,62 +984,62 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
             track_e2e_metrics()
 
         report_memory_flag = training_log(loss_dict, total_loss_dict,
-                                          optimizer.param_groups[0]['lr'],
-                                          iteration, loss_scale,
+                                          None,
+                                          iteration, None,
                                           report_memory_flag, skipped_iter,
                                           grad_norm, params_norm, num_zeros_in_grad)
 
         # Autoresume
-        if args.adlr_autoresume and \
-           (iteration % args.adlr_autoresume_interval == 0):
-            check_adlr_autoresume_termination(iteration, model, optimizer,
-                                              opt_param_scheduler)
+        # if args.adlr_autoresume and \
+        #    (iteration % args.adlr_autoresume_interval == 0):
+        #     check_adlr_autoresume_termination(iteration, model, optimizer,
+        #                                       opt_param_scheduler)
 
         # Evaluation
-        if args.eval_interval and iteration % args.eval_interval == 0 and \
-           args.do_valid:
-            timers('interval-time').stop()
-            if args.use_distributed_optimizer and args.overlap_param_gather:
-                optimizer.disable_pre_hook()
-            if args.manual_gc and args.manual_gc_eval:
-                # Collect all objects.
-                gc.collect()
-            prefix = 'iteration {}'.format(iteration)
-            timers('eval-time', log_level=0).start(barrier=True)
-            evaluate_and_print_results(prefix, forward_step_func,
-                                       valid_data_iterator, model,
-                                       iteration, process_non_loss_data_func,
-                                       config, False)
-            eval_duration += timers('eval-time').elapsed()
-            eval_iterations += args.eval_iters
-            timers('eval-time').stop()
-            if args.manual_gc and args.manual_gc_eval:
-                # Collect only the objects created and used in evaluation.
-                gc.collect(generation=0)
-            if args.use_distributed_optimizer and args.overlap_param_gather:
-                optimizer.enable_pre_hook()
-            timers('interval-time', log_level=0).start(barrier=True)
+        # if args.eval_interval and iteration % args.eval_interval == 0 and \
+        #    args.do_valid:
+        #     timers('interval-time').stop()
+        #     if args.use_distributed_optimizer and args.overlap_param_gather:
+        #         optimizer.disable_pre_hook()
+        #     if args.manual_gc and args.manual_gc_eval:
+        #         # Collect all objects.
+        #         gc.collect()
+        #     prefix = 'iteration {}'.format(iteration)
+        #     timers('eval-time', log_level=0).start(barrier=True)
+        #     evaluate_and_print_results(prefix, forward_step_func,
+        #                                valid_data_iterator, model,
+        #                                iteration, process_non_loss_data_func,
+        #                                config, False)
+        #     eval_duration += timers('eval-time').elapsed()
+        #     eval_iterations += args.eval_iters
+        #     timers('eval-time').stop()
+        #     if args.manual_gc and args.manual_gc_eval:
+        #         # Collect only the objects created and used in evaluation.
+        #         gc.collect(generation=0)
+        #     if args.use_distributed_optimizer and args.overlap_param_gather:
+        #         optimizer.enable_pre_hook()
+        #     timers('interval-time', log_level=0).start(barrier=True)
 
-        # Checkpointing
-        saved_checkpoint = False
-        if args.exit_signal_handler:
-            signal_handler = get_signal_handler()
-            if any(signal_handler.signals_received()):
-                save_checkpoint_and_time(iteration, model, optimizer,
-                                         opt_param_scheduler,
-                                         num_floating_point_operations_so_far)
-                print_datetime('exiting program after receiving SIGTERM.')
-                exit = True
-                break
+        # # Checkpointing
+        # saved_checkpoint = False
+        # if args.exit_signal_handler:
+        #     signal_handler = get_signal_handler()
+        #     if any(signal_handler.signals_received()):
+        #         save_checkpoint_and_time(iteration, model, optimizer,
+        #                                  opt_param_scheduler,
+        #                                  num_floating_point_operations_so_far)
+        #         print_datetime('exiting program after receiving SIGTERM.')
+        #         exit = True
+        #         break
 
-        if args.save and args.save_interval and \
-           iteration % args.save_interval == 0:
-            timers('interval-time').stop()
-            save_checkpoint_and_time(iteration, model, optimizer,
-                                     opt_param_scheduler,
-                                     num_floating_point_operations_so_far)
-            saved_checkpoint = True
-            timers('interval-time', log_level=0).start(barrier=True)
+        # if args.save and args.save_interval and \
+        #    iteration % args.save_interval == 0:
+        #     timers('interval-time').stop()
+        #     save_checkpoint_and_time(iteration, model, optimizer,
+        #                              opt_param_scheduler,
+        #                              num_floating_point_operations_so_far)
+        #     saved_checkpoint = True
+        #     timers('interval-time', log_level=0).start(barrier=True)
 
         # Exiting based on duration
         if args.exit_duration_in_mins:
@@ -1051,24 +1051,24 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                 done_cuda, op=torch.distributed.ReduceOp.MAX)
             done = done_cuda.item()
             if done:
-                if not saved_checkpoint:
-                    save_checkpoint_and_time(iteration, model, optimizer,
-                                             opt_param_scheduler,
-                                             num_floating_point_operations_so_far)
+                # if not saved_checkpoint:
+                #     save_checkpoint_and_time(iteration, model, optimizer,
+                #                              opt_param_scheduler,
+                #                              num_floating_point_operations_so_far)
                 print_datetime('exiting program after {} minutes'.format(train_time))
                 exit = True
                 break
 
         # Exiting based on iterations
-        if args.exit_interval and iteration % args.exit_interval == 0:
-            if args.save and not saved_checkpoint:
-                save_checkpoint_and_time(iteration, model, optimizer,
-                                         opt_param_scheduler,
-                                         num_floating_point_operations_so_far)
-            torch.distributed.barrier()
-            print_datetime('exiting program at iteration {}'.format(iteration))
-            exit = True
-            break
+        # if args.exit_interval and iteration % args.exit_interval == 0:
+        #     if args.save and not saved_checkpoint:
+        #         save_checkpoint_and_time(iteration, model, optimizer,
+        #                                  opt_param_scheduler,
+        #                                  num_floating_point_operations_so_far)
+        #     torch.distributed.barrier()
+        #     print_datetime('exiting program at iteration {}'.format(iteration))
+        #     exit = True
+        #     break
 
         if args.profile and \
            iteration == args.profile_step_end and \
@@ -1090,8 +1090,8 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
         wandb_writer.finish()
 
     # Close out pre-hooks if using distributed optimizer and overlapped param gather.
-    if args.use_distributed_optimizer and args.overlap_param_gather:
-        optimizer.disable_pre_hook()
+    # if args.use_distributed_optimizer and args.overlap_param_gather:
+    #     optimizer.disable_pre_hook()
 
     # If any exit conditions (signal handler, duration, iterations) have been reached, exit.
     if exit:
