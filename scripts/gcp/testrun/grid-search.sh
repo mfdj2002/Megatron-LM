@@ -76,7 +76,7 @@ fi
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 # MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
 MASTER_ADDR=$(hostname)
-MASTER_PORT=6000
+MASTER_PORT=6008
 
 # ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
@@ -126,7 +126,7 @@ GPT_ARGS="
     --seq-length $SEQ_LEN \
     --max-position-embeddings $SEQ_LEN \
     --lr $LR \
-    --train-iters 100
+    --train-iters 50
     --fp16
 "
 
@@ -140,7 +140,7 @@ DATA_ARGS="
 OUTPUT_ARGS="
     --log-interval 5 \
     --save-interval 100 \
-    --eval-interval 10 \
+    --eval-interval 100 \
     --eval-iters 10
 "
 
@@ -254,8 +254,8 @@ USE_NSYS=0
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for global_batch_size in 128; do #8 16
-    for num_microbatches in 1 2 4 8; do
+for global_batch_size in 4; do #8 16
+    for micro_batch_size in 1; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
         #     for no_clone_scatter_output_in_embedding in 0 1; do
@@ -269,7 +269,7 @@ for global_batch_size in 128; do #8 16
                 if [ $((pipeline_size * tensor_size)) -gt $WORLD_SIZE ]; then
                     continue
                 fi
-                micro_batch_size=$((global_batch_size / num_microbatches / pipeline_size / tensor_size))
+                #micro_batch_size=$((global_batch_size / num_microbatches / pipeline_size / tensor_size))
                 if [ $micro_batch_size -lt 1 ]; then
                     continue
                 fi
