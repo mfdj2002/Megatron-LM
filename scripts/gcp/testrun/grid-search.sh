@@ -20,13 +20,13 @@
 
 ## GPT-3 2.7B
 # model_size=2.7
-NUM_LAYERS=32
-HIDDEN_SIZE=2560
-NUM_ATTN_HEADS=32
+#NUM_LAYERS=32
+#HIDDEN_SIZE=2560
+#NUM_ATTN_HEADS=32
 # global_batch_size=512
-LR=1.6e-4
-MIN_LR=1.0e-6
-SEQ_LEN=1024
+#LR=1.6e-4
+#MIN_LR=1.0e-6
+#SEQ_LEN=1024
 # init_std=0.011
 
 # # GPT-3 1.3B
@@ -50,14 +50,21 @@ SEQ_LEN=1024
 
 # GPT-3 Small 125M
 # MODEL_SIZE=0.125
-# NUM_LAYERS=12
-# HIDDEN_SIZE=768
-# NUM_ATTN_HEADS=12
+#NUM_LAYERS=12
+#HIDDEN_SIZE=768
+#NUM_ATTN_HEADS=12
 # MICRO_BATCH_SIZE=1
-# LR=6.0e-4
-# MIN_LR=1.0e-6
-# SEQ_LEN=1024
+#LR=6.0e-4
+#MIN_LR=1.0e-6
+#SEQ_LEN=1024
 # init_std=0.02
+
+NUM_LAYERS=24
+HIDDEN_SIZE=1024
+NUM_ATTN_HEADS=16
+LR=3.0e-4
+# min_lr=1.0e-6
+SEQ_LEN=1024
 
 WORKDIR="/workspace/Megatron-LM"
 HOSTFILE="../hostfile.txt"
@@ -76,7 +83,7 @@ fi
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 # MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
 MASTER_ADDR=$(hostname)
-MASTER_PORT=6000
+MASTER_PORT=6002
 
 # ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
@@ -254,22 +261,22 @@ USE_NSYS=0
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for global_batch_size in 128; do #8 16
-    for num_microbatches in 1 2 4 8; do
+for global_batch_size in 64; do #8 16
+    for micro_batch_size in 1 2 4 8 16; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
         #     for no_clone_scatter_output_in_embedding in 0 1; do
         # for sequence_parallel in 0 1; do
         # for context_size in $(powers_of_two $WORLD_SIZE); do
         # for ((layers_per_virtual_stage = 1; layers_per_virtual_stage <= $NUM_LAYERS / 2; layers_per_virtual_stage++)); do
-        for pipeline_size in 16; do
+        for pipeline_size in 8; do
             for tensor_size in 1; do
                 # for USE_NSYS in 0 1; do
                 # for cpu_init in 0 1; do
                 if [ $((pipeline_size * tensor_size)) -gt $WORLD_SIZE ]; then
                     continue
                 fi
-                micro_batch_size=$((global_batch_size / num_microbatches / pipeline_size / tensor_size))
+                #micro_batch_size=$((global_batch_size / num_microbatches / pipeline_size / tensor_size))
                 if [ $micro_batch_size -lt 1 ]; then
                     continue
                 fi
