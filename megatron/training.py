@@ -1059,16 +1059,16 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                 exit = True
                 break
 
-        # Exiting based on iterations
-        # if args.exit_interval and iteration % args.exit_interval == 0:
-        #     if args.save and not saved_checkpoint:
-        #         save_checkpoint_and_time(iteration, model, optimizer,
-        #                                  opt_param_scheduler,
-        #                                  num_floating_point_operations_so_far)
-        #     torch.distributed.barrier()
-        #     print_datetime('exiting program at iteration {}'.format(iteration))
-        #     exit = True
-        #     break
+        #Exiting based on iterations
+        if args.exit_interval and iteration % args.exit_interval == 0:
+            # if args.save and not saved_checkpoint:
+            #     save_checkpoint_and_time(iteration, model, optimizer,
+            #                              opt_param_scheduler,
+            #                              num_floating_point_operations_so_far)
+            torch.distributed.barrier()
+            print_datetime('exiting program at iteration {}'.format(iteration))
+            exit = True
+            break
 
         if args.profile and \
            iteration == args.profile_step_end and \
