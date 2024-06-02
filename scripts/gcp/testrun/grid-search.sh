@@ -140,7 +140,7 @@ DATA_ARGS="
 OUTPUT_ARGS="
     --log-interval 5 \
     --save-interval 100 \
-    --eval-interval 10 \
+    --eval-interval 100 \
     --eval-iters 10
 "
 
