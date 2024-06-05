@@ -20,13 +20,13 @@
 
 ## GPT-3 2.7B
 # model_size=2.7
-NUM_LAYERS=32
-HIDDEN_SIZE=2560
-NUM_ATTN_HEADS=32
+#NUM_LAYERS=32
+#HIDDEN_SIZE=2560
+#NUM_ATTN_HEADS=32
 # global_batch_size=512
-LR=1.6e-4
-MIN_LR=1.0e-6
-SEQ_LEN=1024
+#LR=1.6e-4
+#MIN_LR=1.0e-6
+#SEQ_LEN=1024
 # init_std=0.011
 
 # # GPT-3 1.3B
@@ -58,6 +58,18 @@ SEQ_LEN=1024
 # MIN_LR=1.0e-6
 # SEQ_LEN=1024
 # init_std=0.02
+
+## GPT-3 Medium 350M
+# model_size=0.35
+NUM_LAYERS=24
+HIDDEN_SIZE=1024
+NUM_ATTN_HEADS=16
+# global_batch_size=256
+LR=3.0e-4
+# min_lr=1.0e-6
+# init_std=0.018
+SEQ_LEN=1024
+
 
 WORKDIR="/workspace/Megatron-LM"
 HOSTFILE="../hostfile.txt"
@@ -126,7 +138,7 @@ GPT_ARGS="
     --seq-length $SEQ_LEN \
     --max-position-embeddings $SEQ_LEN \
     --lr $LR \
-    --train-iters 50
+    --train-iters 10
     --fp16
 "
 
@@ -254,15 +266,15 @@ USE_NSYS=0
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for global_batch_size in 4; do #8 16
-    for micro_batch_size in 1; do
+for global_batch_size in 16; do #8 16
+    for micro_batch_size in 1 2 4 8 16; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
         #     for no_clone_scatter_output_in_embedding in 0 1; do
         # for sequence_parallel in 0 1; do
         # for context_size in $(powers_of_two $WORLD_SIZE); do
         # for ((layers_per_virtual_stage = 1; layers_per_virtual_stage <= $NUM_LAYERS / 2; layers_per_virtual_stage++)); do
-        for pipeline_size in 16; do
+        for pipeline_size in 8; do
             for tensor_size in 1; do
                 # for USE_NSYS in 0 1; do
                 # for cpu_init in 0 1; do

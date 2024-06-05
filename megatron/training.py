@@ -1153,6 +1153,7 @@ def evaluate(forward_step_func,
             if args.empty_unused_memory_level >= 1:
                 torch.cuda.empty_cache()
 
+            report_memory("eval memory report")
             if mpu.is_pipeline_last_stage(ignore_virtual=True):
                 # Reduce across processes.
                 for loss_dict in loss_dicts:
