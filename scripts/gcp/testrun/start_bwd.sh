@@ -44,7 +44,7 @@ WORKDIR="/workspace/Megatron-LM"
 cd $WORKDIR
 export CUDA_DEVICE_MAX_CONNECTIONS=1
 
-export MASTER_ADDR="test0"
+export MASTER_ADDR="megatron-gpt2-0"
 export MASTER_PORT=6000
 
 python pretrain_gpt.py \
