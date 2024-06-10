@@ -14,12 +14,17 @@ from megatron import fused_kernels
 from megatron import get_adlr_autoresume
 from megatron import get_args
 from megatron import get_tensorboard_writer
-from megatron.core import mpu, tensor_parallel
+from megatron.core import tensor_parallel
 from megatron.arguments import parse_args, validate_args
 from megatron.checkpointing import load_args_from_checkpoint
 from megatron.global_vars import set_global_variables
 from megatron.model.transformer import bias_dropout_add_fused_train
 from megatron.model.fused_bias_gelu import bias_gelu
+from megatron.core.parallel_state import ParallelState
+
+mpu = None
+fwd_mpu = None
+bwd_mpu = None
 
 def initialize_megatron(
     extra_args_provider=None,
@@ -68,6 +73,11 @@ def initialize_megatron(
         return None
 
     args = get_args()
+    if args.use_dag:
+        fwd_mpu = ParallelState()
+        bwd_mpu = ParallelState()
+    else:
+        mpu = ParallelState()
     if args.lazy_mpu_init:
         # TODO is this still a necessary option?
         args.use_cpu_initialization = True
@@ -89,7 +99,7 @@ def initialize_megatron(
         _compile_dependencies()
 
         if args.tp_comm_overlap:
-           _initialize_tp_communicators()
+        _initialize_tp_communicators()
 
         # No continuation function
         return None

@@ -34,6 +34,7 @@ def get_retro_args():
 
 
 def get_num_microbatches():
+    raise NotImplementedError('needs to take care of the case when not using dag_train and when using dag train')
     return _GLOBAL_NUM_MICROBATCHES_CALCULATOR.get()
 
 

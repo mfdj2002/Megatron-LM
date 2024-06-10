@@ -21,7 +21,7 @@ from megatron import (
     get_adlr_autoresume,
 )
 from megatron.core import DistributedDataParallel as DDP
-from megatron.core import mpu
+from megatron.initialize import mpu, fwd_mpu, bwd_mpu
 from megatron.core.tensor_parallel import param_is_not_tensor_parallel_duplicate
 from megatron.model import Float16Module
 from megatron.model.module import param_is_not_shared

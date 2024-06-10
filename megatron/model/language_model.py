@@ -6,7 +6,8 @@ import torch
 import torch.nn.functional as F
 
 from megatron import get_args
-from megatron.core import mpu, tensor_parallel
+from megatron.core import tensor_parallel
+from megatron.initialize import mpu, fwd_mpu, bwd_mpu
 from megatron.core.enums import ModelType
 from megatron.core.models.common.embeddings.rotary_pos_embedding import RotaryEmbedding
 
