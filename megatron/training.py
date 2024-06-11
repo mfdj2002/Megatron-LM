@@ -534,7 +534,7 @@ def train_step(forward_step_func, data_iterator,
         seq_length=args.seq_length,
         micro_batch_size=args.micro_batch_size,
         decoder_seq_length=args.decoder_seq_length,
-        forward_only=False)
+        forward_only=True)
 
     # Empty unused memory.
     if args.empty_unused_memory_level >= 1:
@@ -940,146 +940,147 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                 'validation_iterations_time_msecs_avg': validation_iterations_time_msecs_avg
             })
 
-    while iteration < args.train_iters:
-        if args.profile and \
-           iteration == args.profile_step_start and \
-           torch.distributed.get_rank() in args.profile_ranks:
-            torch.cuda.cudart().cudaProfilerStart()
-            torch.autograd.profiler.emit_nvtx(record_shapes=True).__enter__()
+    with torch.no_grad():
+        while iteration < args.train_iters:
+            # if args.profile and \
+            # iteration == args.profile_step_start and \
+            # torch.distributed.get_rank() in args.profile_ranks:
+            #     torch.cuda.cudart().cudaProfilerStart()
+            #     torch.autograd.profiler.emit_nvtx(record_shapes=True).__enter__()
 
-        # Update number of microbatches first without consistency check to decide if a
-        # checkpoint should be saved. If the number of microbatches is different
-        # from the previous iteration, save a checkpoint. Then run consistency check
-        # to make sure training configuration is still valid.
-        update_num_microbatches(args.consumed_train_samples, consistency_check=False)
-        if get_num_microbatches() != num_microbatches and iteration != 0:
-            assert get_num_microbatches() > num_microbatches, \
-                "number of microbatches should be increasing due to batch size rampup"
-            # save_checkpoint_and_time(iteration, model, optimizer,
-            #                          opt_param_scheduler,
-            #                          num_floating_point_operations_so_far)
-        num_microbatches = get_num_microbatches()
-        update_num_microbatches(args.consumed_train_samples, consistency_check=True)
+            # Update number of microbatches first without consistency check to decide if a
+            # checkpoint should be saved. If the number of microbatches is different
+            # from the previous iteration, save a checkpoint. Then run consistency check
+            # to make sure training configuration is still valid.
+            update_num_microbatches(args.consumed_train_samples, consistency_check=False)
+            if get_num_microbatches() != num_microbatches and iteration != 0:
+                assert get_num_microbatches() > num_microbatches, \
+                    "number of microbatches should be increasing due to batch size rampup"
+                # save_checkpoint_and_time(iteration, model, optimizer,
+                #                          opt_param_scheduler,
+                #                          num_floating_point_operations_so_far)
+            num_microbatches = get_num_microbatches()
+            update_num_microbatches(args.consumed_train_samples, consistency_check=True)
 
-        args.curr_iteration = iteration
-        loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
-            train_step(forward_step_func,
-                       train_data_iterator,
-                       model,
-                       None,
-                       None,
-                       config)
-        iteration += 1
-        batch_size = mpu.get_data_parallel_world_size() * \
-                     args.micro_batch_size * \
-                     get_num_microbatches()
-        args.consumed_train_samples += batch_size
-        num_floating_point_operations_so_far += num_floating_point_operations(args, batch_size)
+            args.curr_iteration = iteration
+            loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
+                train_step(forward_step_func,
+                        train_data_iterator,
+                        model,
+                        None,
+                        None,
+                        config)
+            iteration += 1
+            batch_size = mpu.get_data_parallel_world_size() * \
+                        args.micro_batch_size * \
+                        get_num_microbatches()
+            args.consumed_train_samples += batch_size
+            num_floating_point_operations_so_far += num_floating_point_operations(args, batch_size)
 
-        # Logging.
-        #loss_scale = optimizer.get_loss_scale().item()
-        params_norm = None
-        if args.log_params_norm:
-            params_norm = calc_params_l2_norm(model)
+            # Logging.
+            #loss_scale = optimizer.get_loss_scale().item()
+            params_norm = None
+            if args.log_params_norm:
+                params_norm = calc_params_l2_norm(model)
 
-        if iteration % args.log_interval == 0:
-            track_e2e_metrics()
+            if iteration % args.log_interval == 0:
+                track_e2e_metrics()
 
-        report_memory_flag = training_log(loss_dict, total_loss_dict,
-                                          None,
-                                          iteration, None,
-                                          report_memory_flag, skipped_iter,
-                                          grad_norm, params_norm, num_zeros_in_grad)
+            report_memory_flag = training_log(loss_dict, total_loss_dict,
+                                            None,
+                                            iteration, None,
+                                            report_memory_flag, skipped_iter,
+                                            grad_norm, params_norm, num_zeros_in_grad)
 
-        # Autoresume
-        # if args.adlr_autoresume and \
-        #    (iteration % args.adlr_autoresume_interval == 0):
-        #     check_adlr_autoresume_termination(iteration, model, optimizer,
-        #                                       opt_param_scheduler)
+            # Autoresume
+            # if args.adlr_autoresume and \
+            #    (iteration % args.adlr_autoresume_interval == 0):
+            #     check_adlr_autoresume_termination(iteration, model, optimizer,
+            #                                       opt_param_scheduler)
 
-        # Evaluation
-        # if args.eval_interval and iteration % args.eval_interval == 0 and \
-        #    args.do_valid:
-        #     timers('interval-time').stop()
-        #     if args.use_distributed_optimizer and args.overlap_param_gather:
-        #         optimizer.disable_pre_hook()
-        #     if args.manual_gc and args.manual_gc_eval:
-        #         # Collect all objects.
-        #         gc.collect()
-        #     prefix = 'iteration {}'.format(iteration)
-        #     timers('eval-time', log_level=0).start(barrier=True)
-        #     evaluate_and_print_results(prefix, forward_step_func,
-        #                                valid_data_iterator, model,
-        #                                iteration, process_non_loss_data_func,
-        #                                config, False)
-        #     eval_duration += timers('eval-time').elapsed()
-        #     eval_iterations += args.eval_iters
-        #     timers('eval-time').stop()
-        #     if args.manual_gc and args.manual_gc_eval:
-        #         # Collect only the objects created and used in evaluation.
-        #         gc.collect(generation=0)
-        #     if args.use_distributed_optimizer and args.overlap_param_gather:
-        #         optimizer.enable_pre_hook()
-        #     timers('interval-time', log_level=0).start(barrier=True)
+            # Evaluation
+            # if args.eval_interval and iteration % args.eval_interval == 0 and \
+            #    args.do_valid:
+            #     timers('interval-time').stop()
+            #     if args.use_distributed_optimizer and args.overlap_param_gather:
+            #         optimizer.disable_pre_hook()
+            #     if args.manual_gc and args.manual_gc_eval:
+            #         # Collect all objects.
+            #         gc.collect()
+            #     prefix = 'iteration {}'.format(iteration)
+            #     timers('eval-time', log_level=0).start(barrier=True)
+            #     evaluate_and_print_results(prefix, forward_step_func,
+            #                                valid_data_iterator, model,
+            #                                iteration, process_non_loss_data_func,
+            #                                config, False)
+            #     eval_duration += timers('eval-time').elapsed()
+            #     eval_iterations += args.eval_iters
+            #     timers('eval-time').stop()
+            #     if args.manual_gc and args.manual_gc_eval:
+            #         # Collect only the objects created and used in evaluation.
+            #         gc.collect(generation=0)
+            #     if args.use_distributed_optimizer and args.overlap_param_gather:
+            #         optimizer.enable_pre_hook()
+            #     timers('interval-time', log_level=0).start(barrier=True)
 
-        # # Checkpointing
-        # saved_checkpoint = False
-        # if args.exit_signal_handler:
-        #     signal_handler = get_signal_handler()
-        #     if any(signal_handler.signals_received()):
-        #         save_checkpoint_and_time(iteration, model, optimizer,
-        #                                  opt_param_scheduler,
-        #                                  num_floating_point_operations_so_far)
-        #         print_datetime('exiting program after receiving SIGTERM.')
-        #         exit = True
-        #         break
+            # # Checkpointing
+            # saved_checkpoint = False
+            # if args.exit_signal_handler:
+            #     signal_handler = get_signal_handler()
+            #     if any(signal_handler.signals_received()):
+            #         save_checkpoint_and_time(iteration, model, optimizer,
+            #                                  opt_param_scheduler,
+            #                                  num_floating_point_operations_so_far)
+            #         print_datetime('exiting program after receiving SIGTERM.')
+            #         exit = True
+            #         break
 
-        # if args.save and args.save_interval and \
-        #    iteration % args.save_interval == 0:
-        #     timers('interval-time').stop()
-        #     save_checkpoint_and_time(iteration, model, optimizer,
-        #                              opt_param_scheduler,
-        #                              num_floating_point_operations_so_far)
-        #     saved_checkpoint = True
-        #     timers('interval-time', log_level=0).start(barrier=True)
-
-        # Exiting based on duration
-        if args.exit_duration_in_mins:
-            train_time = (time.time() - _TRAIN_START_TIME) / 60.0
-            done_cuda = torch.tensor(
-                [train_time > args.exit_duration_in_mins],
-                dtype=torch.int, device='cuda')
-            torch.distributed.all_reduce(
-                done_cuda, op=torch.distributed.ReduceOp.MAX)
-            done = done_cuda.item()
-            if done:
-                # if not saved_checkpoint:
-                #     save_checkpoint_and_time(iteration, model, optimizer,
-                #                              opt_param_scheduler,
-                #                              num_floating_point_operations_so_far)
-                print_datetime('exiting program after {} minutes'.format(train_time))
-                exit = True
-                break
-
-        #Exiting based on iterations
-        if args.exit_interval and iteration % args.exit_interval == 0:
-            # if args.save and not saved_checkpoint:
+            # if args.save and args.save_interval and \
+            #    iteration % args.save_interval == 0:
+            #     timers('interval-time').stop()
             #     save_checkpoint_and_time(iteration, model, optimizer,
             #                              opt_param_scheduler,
             #                              num_floating_point_operations_so_far)
-            torch.distributed.barrier()
-            print_datetime('exiting program at iteration {}'.format(iteration))
-            exit = True
-            break
+            #     saved_checkpoint = True
+            #     timers('interval-time', log_level=0).start(barrier=True)
 
-        if args.profile and \
-           iteration == args.profile_step_end and \
-           torch.distributed.get_rank() in args.profile_ranks:
-            torch.cuda.cudart().cudaProfilerStop()
+            # Exiting based on duration
+            if args.exit_duration_in_mins:
+                train_time = (time.time() - _TRAIN_START_TIME) / 60.0
+                done_cuda = torch.tensor(
+                    [train_time > args.exit_duration_in_mins],
+                    dtype=torch.int, device='cuda')
+                torch.distributed.all_reduce(
+                    done_cuda, op=torch.distributed.ReduceOp.MAX)
+                done = done_cuda.item()
+                if done:
+                    # if not saved_checkpoint:
+                    #     save_checkpoint_and_time(iteration, model, optimizer,
+                    #                              opt_param_scheduler,
+                    #                              num_floating_point_operations_so_far)
+                    print_datetime('exiting program after {} minutes'.format(train_time))
+                    exit = True
+                    break
 
-        if args.manual_gc:
-            if args.manual_gc_interval != 0 and iteration % args.manual_gc_interval == 0:
-                gc.collect()
+            #Exiting based on iterations
+            if args.exit_interval and iteration % args.exit_interval == 0:
+                # if args.save and not saved_checkpoint:
+                #     save_checkpoint_and_time(iteration, model, optimizer,
+                #                              opt_param_scheduler,
+                #                              num_floating_point_operations_so_far)
+                torch.distributed.barrier()
+                print_datetime('exiting program at iteration {}'.format(iteration))
+                exit = True
+                break
+
+            if args.profile and \
+            iteration == args.profile_step_end and \
+            torch.distributed.get_rank() in args.profile_ranks:
+                torch.cuda.cudart().cudaProfilerStop()
+
+            if args.manual_gc:
+                if args.manual_gc_interval != 0 and iteration % args.manual_gc_interval == 0:
+                    gc.collect()
 
     track_e2e_metrics()
 
