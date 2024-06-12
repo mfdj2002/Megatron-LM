@@ -1116,89 +1116,115 @@ def evaluate(forward_step_func,
         compute_feature_bank(model)
 
     # Turn on evaluation mode which disables dropout.
-    for model_module in model:
-        model_module.eval()
+    # for model_module in model:
+    #     model_module.eval()
+    # for model_module in model:
+    #     model_module.eval()
 
     total_loss_dict = {}
 
     # make validation batch size independent from training batch size
-    eval_batch_size = args.global_batch_size
-    eval_num_microbatches = eval_batch_size // \
-        (args.micro_batch_size * args.data_parallel_size)
+    # eval_batch_size = args.global_batch_size
+    # eval_num_microbatches = eval_batch_size // \
+    #     (args.micro_batch_size * args.data_parallel_size)
+    # eval_batch_size = args.global_batch_size
+    # eval_num_microbatches = eval_batch_size // \
+    #     (args.micro_batch_size * args.data_parallel_size)
 
     with torch.no_grad():
-        iteration = 0
-        if verbose:
-            print_rank_0(f'Evaluating on {args.eval_iters * eval_batch_size} samples')
-        while iteration < args.eval_iters:
-            iteration += 1
+        data_iterators = build_valid_data_iterators([1, 2, 4, 8, 32, 64, 128])
+        for i, microbatch_size in enumerate([1, 2, 4, 8, 32, 64, 128]):
+            for model_module in model:
+                model_module.reset_pipeline()
+            number_of_microbatches = args.world_size # let global batch size be at least 1024
+            data_iterator = data_iterators[i]
+            iteration = 0
             if verbose:
-                print_rank_0(f'Evaluating iter {iteration}/{args.eval_iters}')
+                print_rank_0(f'Evaluating on {args.eval_iters * microbatch_size} samples')
+            while iteration < args.eval_iters:
+                iteration += 1
+                if verbose:
+                    print_rank_0(f'Evaluating iter {iteration}/{args.eval_iters}')
 
-            forward_backward_func = get_forward_backward_func()
-            # Don't care about timing during evaluation
-            config.timers = None
-            loss_dicts = forward_backward_func(
-                forward_step_func=forward_step_func,
-                data_iterator=data_iterator,
-                model=model,
-                num_microbatches=eval_num_microbatches,
-                seq_length=args.seq_length,
-                micro_batch_size=args.micro_batch_size,
-                decoder_seq_length=args.decoder_seq_length,
-                forward_only=True)
-            config.timers = get_timers()
+                forward_backward_func = get_forward_backward_func()
+                # Don't care about timing during evaluation
+                config.timers = None
+                loss_dicts = forward_backward_func(
+                    forward_step_func=forward_step_func,
+                    data_iterator=data_iterator,
+                    model=model,
+                    num_microbatches=number_of_microbatches,
+                    seq_length=args.seq_length,
+                    micro_batch_size=microbatch_size,
+                    decoder_seq_length=args.decoder_seq_length,
+                    forward_only=True)
+                config.timers = get_timers()
 
-            # Empty unused memory
-            if args.empty_unused_memory_level >= 1:
-                torch.cuda.empty_cache()
+                # Empty unused memory
+                if args.empty_unused_memory_level >= 1:
+                    torch.cuda.empty_cache()
 
-            report_memory("eval memory report")
-            if mpu.is_pipeline_last_stage(ignore_virtual=True):
-                # Reduce across processes.
-                for loss_dict in loss_dicts:
-                    for key in loss_dict:
-                        total_loss_dict[key] = total_loss_dict.get(
-                            key, torch.tensor([0.0], dtype=torch.float, device='cuda')) + loss_dict[key]
+                report_memory("eval memory report for microbatch size {}".format(microbatch_size))
+                if mpu.is_pipeline_last_stage(ignore_virtual=True):
+                    # Reduce across processes.
+                    for loss_dict in loss_dicts:
+                        for key in loss_dict:
+                            total_loss_dict[key] = total_loss_dict.get(
+                                key, torch.tensor([0.0], dtype=torch.float, device='cuda')) + loss_dict[key]
 
-            args.consumed_valid_samples += eval_batch_size
+                args.consumed_valid_samples += microbatch_size
 
-            if args.exit_duration_in_mins:
-                train_time = (time.time() - _TRAIN_START_TIME) / 60.0
-                done_cuda = torch.tensor(
-                    [train_time > args.exit_duration_in_mins],
-                    dtype=torch.int, device='cuda')
-                torch.distributed.all_reduce(
-                    done_cuda, op=torch.distributed.ReduceOp.MAX)
-                done = done_cuda.item()
-                if done:
-                    print_rank_0('Exiting during evaluation, timelimit reached')
-                    return None, None, True
+                if args.exit_duration_in_mins:
+                    train_time = (time.time() - _TRAIN_START_TIME) / 60.0
+                    done_cuda = torch.tensor(
+                        [train_time > args.exit_duration_in_mins],
+                        dtype=torch.int, device='cuda')
+                    torch.distributed.all_reduce(
+                        done_cuda, op=torch.distributed.ReduceOp.MAX)
+                    done = done_cuda.item()
+                    if done:
+                        print_rank_0('Exiting during evaluation, timelimit reached')
+                        return None, None, True
 
-        collected_non_loss_data = None
-        if process_non_loss_data_func is not None and is_last_rank():
-            collected_non_loss_data = forward_backward_func(
-                forward_step_func=forward_step_func,
-                data_iterator=data_iterator,
-                model=model,
-                num_microbatches=get_num_microbatches(),
-                seq_length=args.seq_length,
-                micro_batch_size=args.micro_batch_size,
-                decoder_seq_length=args.decoder_seq_length,
-                forward_only=True,
-                collect_non_loss_data=True)
+            collected_non_loss_data = None
+            if process_non_loss_data_func is not None and is_last_rank():
+                collected_non_loss_data = forward_backward_func(
+                    forward_step_func=forward_step_func,
+                    data_iterator=data_iterator,
+                    model=model,
+                    num_microbatches=get_num_microbatches(),
+                    seq_length=args.seq_length,
+                    micro_batch_size=args.micro_batch_size,
+                    decoder_seq_length=args.decoder_seq_length,
+                    forward_only=True,
+                    collect_non_loss_data=True)
+            collected_non_loss_data = None
+            if process_non_loss_data_func is not None and is_last_rank():
+                collected_non_loss_data = forward_backward_func(
+                    forward_step_func=forward_step_func,
+                    data_iterator=data_iterator,
+                    model=model,
+                    num_microbatches=get_num_microbatches(),
+                    seq_length=args.seq_length,
+                    micro_batch_size=args.micro_batch_size,
+                    decoder_seq_length=args.decoder_seq_length,
+                    forward_only=True,
+                    collect_non_loss_data=True)
 
     # Move model back to the train mode.
     for model_module in model:
         model_module.train()
 
-    for key in total_loss_dict:
-        total_loss_dict[key] /= args.eval_iters * eval_num_microbatches
+    # for key in total_loss_dict:
+    #     total_loss_dict[key] /= args.eval_iters * microbatch_size
+    # for key in total_loss_dict:
+    #     total_loss_dict[key] /= args.eval_iters * microbatch_size
 
     timers('evaluate').stop()
     timers.log(['evaluate'])
 
     return total_loss_dict, collected_non_loss_data, False
+
 
 def evaluate_and_print_results(prefix, forward_step_func,
                                data_iterator, model,
@@ -1373,3 +1399,130 @@ def build_train_valid_test_data_iterators(
         test_data_iterator = None
 
     return train_data_iterator, valid_data_iterator, test_data_iterator
+
+
+def build_valid_data_iterators(micro_batch_sizes):
+    """Build pretraining data iterators."""
+
+    from ..pretrain_gpt import train_valid_test_datasets_provider
+    args = get_args()
+
+    # Build loaders.
+    valid_dataloaders = \
+        build_valid_data_loaders(
+            train_valid_test_datasets_provider, micro_batch_sizes)
+
+    # Build iterators.
+    dl_type = args.dataloader_type
+    assert dl_type in ['single', 'cyclic']
+
+    # if train_dataloader is not None:
+    #     train_data_iterator = iter(train_dataloader) if dl_type == 'single' \
+    #                           else iter(cyclic_iter(train_dataloader))
+    # else:
+    #     train_data_iterator = None
+
+    valid_data_iterators = []
+    for valid_dataloader in valid_dataloaders:
+        if valid_dataloader is not None:
+            valid_data_iterator = iter(valid_dataloader) if dl_type == 'single' \
+                                else iter(cyclic_iter(valid_dataloader))
+        else:
+            valid_data_iterator = None
+        valid_data_iterators.append(valid_data_iterator)
+
+    # if test_dataloader is not None:
+    #     test_data_iterator = iter(test_dataloader) if dl_type == 'single' \
+    #                          else iter(cyclic_iter(test_dataloader))
+    # else:
+    #     test_data_iterator = None
+
+    return valid_data_iterators
+
+
+
+def build_valid_data_loaders(
+        build_train_valid_test_datasets_provider, micro_batch_sizes):
+    """Build pretraining data loaders."""
+
+    args = get_args()
+
+    print_rank_0('> building train, validation, and test datasets ...')
+
+    # Backward compatibility, assume fixed batch size.
+    # if args.iteration > 0 and args.consumed_train_samples == 0:
+    #     assert args.train_samples is None, \
+    #         'only backward compatiblity support for iteration-based training'
+    #     args.consumed_train_samples = args.iteration * args.global_batch_size
+    # if args.iteration > 0 and args.consumed_valid_samples == 0:
+    #     if args.train_samples is None:
+    #         args.consumed_valid_samples = (args.iteration // args.eval_interval) * \
+    #             args.eval_iters * args.global_batch_size
+
+    # Rely on distributed-aware core datasets, temporary
+    is_distributed = getattr(build_train_valid_test_datasets_provider, "is_distributed", False)
+
+    # Construct the data pipeline
+    if is_distributed or mpu.get_tensor_model_parallel_rank() == 0:
+        valid_dataloaders = []
+        # # Build datasets.
+        valid_datasets= build_valid_datasets(
+            build_train_valid_test_datasets_provider, micro_batch_sizes)
+        # # Build dataloders.
+        # train_dataloader = build_pretraining_data_loader(
+        #     train_ds, args.consumed_train_samples)
+        # if args.skip_train:
+        for valid_ds in valid_datasets:
+            valid_dataloaders.append(build_pretraining_data_loader(valid_ds, 0))
+        # else:
+        # valid_dataloader = build_pretraining_data_loader(
+        #         valid_ds, args.consumed_valid_samples)
+        # test_dataloader = build_pretraining_data_loader(test_ds, 0)
+
+        # Flags to know if we need to do training/validation/testing.
+        # do_train = train_dataloader is not None and args.train_iters > 0
+        # do_valid = valid_dataloader is not None and args.eval_iters > 0
+        # do_test = test_dataloader is not None and args.eval_iters > 0
+    flags = torch.tensor(
+        [0, 1, 0],
+        dtype=torch.long, device='cuda')
+    # else:
+    #     flags = torch.tensor([0, 0, 0], dtype=torch.long, device='cuda')
+
+    torch.distributed.broadcast(flags, 0)
+
+    args.do_train = getattr(args, "do_train", False) or flags[0].item()
+    args.do_valid = getattr(args, "do_valid", False) or flags[1].item()
+    args.do_test = getattr(args, "do_test", False) or flags[2].item()
+
+    return valid_dataloaders
+
+
+
+def build_valid_datasets(build_train_valid_test_datasets_provider, micro_batch_sizes):
+    """Build pretraining datasets."""
+
+    args = get_args()
+
+    # Number of train/valid/test samples.
+    if args.train_samples:
+        train_samples = args.train_samples
+    else:
+        train_samples = args.train_iters * args.global_batch_size
+    eval_iters = (args.train_iters // args.eval_interval + 1) * \
+                 args.eval_iters
+    test_iters = args.eval_iters
+    train_val_test_num_samples = [train_samples,
+                                  eval_iters * args.global_batch_size,
+                                  test_iters * args.global_batch_size]
+    print_rank_0(' > datasets target sizes (minimum size):')
+    print_rank_0('    train:      {}'.format(train_val_test_num_samples[0]))
+    print_rank_0('    validation: {}'.format(train_val_test_num_samples[1]))
+    print_rank_0('    test:       {}'.format(train_val_test_num_samples[2]))
+
+    datasets = []
+    for microbatch_size in micro_batch_sizes:
+        train_val_test_num_samples[1] = eval_iters * microbatch_size * args.world_size  
+        datasets.append(build_train_valid_test_datasets_provider(train_val_test_num_samples))
+    # Build the datasets.
+    return datasets
