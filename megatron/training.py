@@ -1134,8 +1134,8 @@ def evaluate(forward_step_func,
     with torch.no_grad():
         data_iterators = build_valid_data_iterators([1, 2, 4, 8, 32, 64, 128])
         for i, microbatch_size in enumerate([1, 2, 4, 8, 32, 64, 128]):
-            for model_module in model:
-                model_module.reset_pipeline()
+            # for model_module in model:
+            #     model_module.reset_pipeline()
             number_of_microbatches = args.world_size # let global batch size be at least 1024
             data_iterator = data_iterators[i]
             iteration = 0
@@ -1534,7 +1534,7 @@ def build_valid_data_loaders(
     if is_distributed or mpu.get_tensor_model_parallel_rank() == 0:
         valid_dataloaders = []
         # # Build datasets.
-        valid_datasets= build_valid_datasets(
+        valid_datasets = build_valid_datasets(
             build_train_valid_test_datasets_provider, micro_batch_sizes)
         # # Build dataloders.
         # train_dataloader = build_pretraining_data_loader(
@@ -1590,8 +1590,9 @@ def build_valid_datasets(build_train_valid_test_datasets_provider, micro_batch_s
 
     datasets = []
     for microbatch_size in micro_batch_sizes:
-        train_val_test_num_samples[1] = eval_iters * microbatch_size * args.world_size  
-        datasets.append(build_train_valid_test_datasets_provider(train_val_test_num_samples))
+        train_val_test_num_samples[1] = eval_iters * microbatch_size * args.world_size
+        _, valid_ds, _ = build_train_valid_test_datasets_provider(train_val_test_num_samples)
+        datasets.append(valid_ds)
     # Build the datasets.
     return datasets
 
