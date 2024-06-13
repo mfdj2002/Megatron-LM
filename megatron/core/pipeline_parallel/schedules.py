@@ -11,6 +11,7 @@ from megatron.core.enums import ModelType
 from megatron.core.pipeline_parallel import p2p_communication
 from megatron.core.transformer.moe.router import MoEAuxLossAutoScaler
 from megatron.core.utils import get_attr_wrapped_model, get_model_config, get_model_type
+from megatron.utils import report_memory
 
 # Types
 Shape = Union[List[int], torch.Size]
@@ -1195,6 +1196,7 @@ def forward_backward_pipelining_without_interleaving(
         input_tensors = []
         output_tensors = []
     forward_data_store = []
+    report_memory(f"before warmup, device {torch.distributed.get_rank()}")
 
     # Run warmup forward passes.
     for i in range(num_warmup_microbatches):
@@ -1208,6 +1210,7 @@ def forward_backward_pipelining_without_interleaving(
             checkpoint_activations_microbatch = None
 
         input_tensor = recv_forward(recv_tensor_shapes, config)
+        report_memory(f"after {i}th recv fwd in warmup fwd pass on device {torch.distributed.get_rank()}")
         output_tensor = forward_step(
             forward_step_func,
             data_iterator,
@@ -1220,7 +1223,9 @@ def forward_backward_pipelining_without_interleaving(
             checkpoint_activations_microbatch,
             check_first_val_step(first_val_step, forward_only, i == 0),
         )
+        report_memory(f"after {i}th forward step warmup fwd pass on device {torch.distributed.get_rank()}")
         send_forward(output_tensor, send_tensor_shapes, config)
+        report_memory(f"after {i}th send fwd in warmup fwd pass on device {torch.distributed.get_rank()}")
 
         if not forward_only:
             input_tensors.append(input_tensor)
@@ -1231,7 +1236,9 @@ def forward_backward_pipelining_without_interleaving(
     # If all microbatches are run in warmup / cooldown phase, then no need to
     # receive this tensor here.
     if num_microbatches_remaining > 0:
+        report_memory(f"before steady state, device {torch.distributed.get_rank()}")
         input_tensor = recv_forward(recv_tensor_shapes, config)
+        report_memory(f"after recv fwd in steady state on device {torch.distributed.get_rank()}")
 
     # Run 1F1B in steady state.
     for i in range(num_microbatches_remaining):
@@ -1259,46 +1266,53 @@ def forward_backward_pipelining_without_interleaving(
                 first_val_step, forward_only, (i == 0) and (num_warmup_microbatches == 0)
             ),
         )
+        report_memory(f"after {i}th forward step in steady state on device {torch.distributed.get_rank()}")
 
         if forward_only:
             send_forward(output_tensor, send_tensor_shapes, config)
+            report_memory(f"FORWARD_ONLY: after {i}th send forward in steady state on device {torch.distributed.get_rank()}")
 
             if not last_iteration:
                 input_tensor = recv_forward(recv_tensor_shapes, config)
+                report_memory(f"FORWARD_ONLY: after {i}th recv forward in steady state on device {torch.distributed.get_rank()}")
 
         else:
             output_tensor_grad = send_forward_recv_backward(
                 output_tensor, send_tensor_shapes, config
             )
+            report_memory(f"after {i}th send forward recv backward in steady state on device {torch.distributed.get_rank()}")
 
             # Add input_tensor and output_tensor to end of list.
             input_tensors.append(input_tensor)
             output_tensors.append(output_tensor)
             deallocate_output_tensor(output_tensor[0], config.deallocate_pipeline_outputs)
+            report_memory(f"after {i}th adding in/output tensors, deallocate output tensor in steady state on device {torch.distributed.get_rank()}")
 
             # Pop input_tensor and output_tensor from the start of the list for
             # the backward pass.
             input_tensor = input_tensors.pop(0)
             output_tensor = output_tensors.pop(0)
-
             # Enable grad sync for the last microbatch in the batch if the full
             # backward pass completes in the 1F1B stage.
             if num_warmup_microbatches == 0 and last_iteration:
                 if config.grad_sync_func is None or rank == 0:
                     enable_grad_sync()
 
+            report_memory(f"before {i}th backward step in steady state on device {torch.distributed.get_rank()}")
             input_tensor_grad = backward_step(
                 input_tensor, output_tensor, output_tensor_grad, model_type, config
             )
+            report_memory(f"after {i}th backward step in steady state on device {torch.distributed.get_rank()}")
 
             if last_iteration:
                 input_tensor = None
                 send_backward(input_tensor_grad, recv_tensor_shapes, config)
+                report_memory(f"after {i}th send backward, LAST ITERATION in steady state on device {torch.distributed.get_rank()}")
             else:
                 input_tensor = send_backward_recv_forward(
                     input_tensor_grad, recv_tensor_shapes, config
                 )
-
+                report_memory(f"after {i}th send backward recv forward, in steady state on device {torch.distributed.get_rank()}")
     # Run cooldown backward passes.
     if not forward_only:
         for i in range(num_warmup_microbatches):
@@ -1314,14 +1328,17 @@ def forward_backward_pipelining_without_interleaving(
 
             input_tensor = input_tensors.pop(0)
             output_tensor = output_tensors.pop(0)
-
+            report_memory(f"before {i}th backward step in cooldown on device {torch.distributed.get_rank()}")
             output_tensor_grad = recv_backward(send_tensor_shapes, config)
+            report_memory(f"after {i}th recv backward in cooldown on device {torch.distributed.get_rank()}")
 
             input_tensor_grad = backward_step(
                 input_tensor, output_tensor, output_tensor_grad, model_type, config
             )
+            report_memory(f"after {i}th backward step in cooldown on device {torch.distributed.get_rank()}")
 
             send_backward(input_tensor_grad, recv_tensor_shapes, config)
+            report_memory(f"after {i}th send backward in cooldown on device {torch.distributed.get_rank()}")
 
         # Launch any remaining grad reductions.
         if no_sync_context is not None:
