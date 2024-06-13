@@ -276,6 +276,7 @@ def get_batch_on_this_tp_rank(data_iterator):
 
     args = get_args()
 
+    print(f"microbatch right now: {args.micro_batch_size}", flush=True)
     def _broadcast(item):
        torch.distributed.broadcast(item, mpu.get_tensor_model_parallel_src_rank(), group=mpu.get_tensor_model_parallel_group())
 

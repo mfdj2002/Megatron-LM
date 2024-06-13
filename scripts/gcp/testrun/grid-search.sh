@@ -76,7 +76,7 @@ HOSTFILE="../hostfile.txt"
 
 IMAGE_NAME="mfdj2002/mds:gcp"
 
-MAX_RUNTIME_PER_EXPERIMENT=5 #minutes
+MAX_RUNTIME_PER_EXPERIMENT=40 #minutes
 
 if [ -z "$NNODES" ] || [ -z "$GPUS_PER_NODE" ]; then
     echo "Error: NNODES and GPUS_PER_NODE are required."
@@ -88,7 +88,7 @@ fi
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 # MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
 MASTER_ADDR=$(hostname)
-MASTER_PORT=6008
+MASTER_PORT=6011
 
 # ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
@@ -121,7 +121,7 @@ powers_of_two() {
 
 FIXED_ARGS="
 
---exit-duration-in-mins $MAX_RUNTIME_PER_EXPERIMENT
+--exit-duration-in-mins "40"
 "
 
 # --lr-decay-iters 320000 \
@@ -212,7 +212,7 @@ launch() {
         # ssh-keyscan -H $addr >>~/.ssh/known_hosts
         # echo "Host $addr added to known_hosts."
         # fi
-        max_time="8m"
+        max_time="40m"
         if [ $counter -eq 0 ]; then
             max_time="15m"
         fi
@@ -266,8 +266,8 @@ USE_NSYS=0
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for global_batch_size in 16; do #8 16
-    for micro_batch_size in 1 2 4 8 16; do
+for global_batch_size in 8; do #8 16
+    for micro_batch_size in 1; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
         #     for no_clone_scatter_output_in_embedding in 0 1; do

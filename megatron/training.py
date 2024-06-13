@@ -10,7 +10,7 @@ import os
 import sys
 from .log_handler import CustomHandler
 # Make default logging level INFO, but filter out all log messages not from MCore.
-logging.basicConfig(handlers=[CustomHandler()], level=logging.INFO)
+#logging.basicConfig(handlers=[CustomHandler()], level=logging.INFO)
 from .theoretical_memory_usage import report_theoretical_memory
 import time
 # The earliest we can measure the start time.
@@ -51,6 +51,7 @@ from megatron.core.pipeline_parallel import get_forward_backward_func
 from megatron.utils import report_memory
 from megatron.model.vision.knn_monitor import compute_feature_bank
 
+from megatron.global_vars import set_args
 
 def print_datetime(string):
     """Note that this call will sync across all ranks."""
@@ -1137,6 +1138,10 @@ def evaluate(forward_step_func,
             # for model_module in model:
             #     model_module.reset_pipeline()
             number_of_microbatches = args.world_size # let global batch size be at least 1024
+            args.micro_batch_size = microbatch_size
+            args.global_batch_size = microbatch_size * args.world_size
+
+            set_args(args)
             data_iterator = data_iterators[i]
             iteration = 0
             if verbose:
@@ -1540,7 +1545,9 @@ def build_valid_data_loaders(
         # train_dataloader = build_pretraining_data_loader(
         #     train_ds, args.consumed_train_samples)
         # if args.skip_train:
-        for valid_ds in valid_datasets:
+        for i, valid_ds in enumerate(valid_datasets):
+            args.micro_batch_size = micro_batch_sizes[i]
+            set_args(args)
             valid_dataloaders.append(build_pretraining_data_loader(valid_ds, 0))
         # else:
         # valid_dataloader = build_pretraining_data_loader(
