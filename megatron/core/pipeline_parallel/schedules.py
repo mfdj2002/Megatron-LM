@@ -1032,21 +1032,25 @@ def recv_forward(tensor_shapes, config):
 
 def recv_backward(tensor_shapes, config):
     output_tensor_grads = []
+    report_memory(f"before recv_backward")
     for tensor_shape in tensor_shapes:
         if tensor_shape is None:
             output_tensor_grads.append(None)
         else:
             output_tensor_grads.append(p2p_communication.recv_backward(tensor_shape, config))
+    report_memory(f"after recv_backward")
     return output_tensor_grads
 
 
 def send_forward(output_tensors, tensor_shapes, config):
     if not isinstance(output_tensors, list):
         output_tensors = [output_tensors]
+    report_memory(f"before send_forward")
     for (output_tensor, tensor_shape) in zip(output_tensors, tensor_shapes):
         if tensor_shape is None:
             continue
         p2p_communication.send_forward(output_tensor, config)
+    report_memory(f"after send_forward")
 
 
 def send_backward(input_tensor_grads, tensor_shapes, config):
