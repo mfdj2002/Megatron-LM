@@ -1119,8 +1119,7 @@ def evaluate(forward_step_func,
     # Turn on evaluation mode which disables dropout.
     # for model_module in model:
     #     model_module.eval()
-    # for model_module in model:
-    #     model_module.eval()
+
 
     total_loss_dict = {}
 
@@ -1128,9 +1127,7 @@ def evaluate(forward_step_func,
     # eval_batch_size = args.global_batch_size
     # eval_num_microbatches = eval_batch_size // \
     #     (args.micro_batch_size * args.data_parallel_size)
-    # eval_batch_size = args.global_batch_size
-    # eval_num_microbatches = eval_batch_size // \
-    #     (args.micro_batch_size * args.data_parallel_size)
+
 
     with torch.no_grad():
         data_iterators = build_valid_data_iterators([1, 2, 4, 8, 32, 64, 128])
@@ -1203,18 +1200,7 @@ def evaluate(forward_step_func,
                     decoder_seq_length=args.decoder_seq_length,
                     forward_only=True,
                     collect_non_loss_data=True)
-            collected_non_loss_data = None
-            if process_non_loss_data_func is not None and is_last_rank():
-                collected_non_loss_data = forward_backward_func(
-                    forward_step_func=forward_step_func,
-                    data_iterator=data_iterator,
-                    model=model,
-                    num_microbatches=get_num_microbatches(),
-                    seq_length=args.seq_length,
-                    micro_batch_size=args.micro_batch_size,
-                    decoder_seq_length=args.decoder_seq_length,
-                    forward_only=True,
-                    collect_non_loss_data=True)
+
 
     # Move model back to the train mode.
     for model_module in model:
@@ -1222,8 +1208,7 @@ def evaluate(forward_step_func,
 
     # for key in total_loss_dict:
     #     total_loss_dict[key] /= args.eval_iters * microbatch_size
-    # for key in total_loss_dict:
-    #     total_loss_dict[key] /= args.eval_iters * microbatch_size
+
 
     timers('evaluate').stop()
     timers.log(['evaluate'])
