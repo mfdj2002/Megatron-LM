@@ -190,15 +190,21 @@ def forward_step(
         context_manager = contextlib.nullcontext()
     with context_manager:
         if checkpoint_activations_microbatch is None:
+            report_memory(f"before forward step inside forward_step()")
             output_tensor, loss_func = forward_step_func(data_iterator, model)
+            report_memory(f"after forward step inside forward_step()")
         else:
+            report_memory(f"before forward step inside forward_step()")
             output_tensor, loss_func = forward_step_func(
                 data_iterator, model, checkpoint_activations_microbatch
             )
+            report_memory(f"after forward step inside forward_step()")
 
     if parallel_state.is_pipeline_last_stage():
         if not collect_non_loss_data:
+            report_memory(f"[last pipeline stage] before loss_func inside forward_step()")
             output_tensor = loss_func(output_tensor)
+            report_memory(f"[last pipeline stage] after loss_func inside forward_step()")
             loss, loss_reduced = output_tensor
             output_tensor = loss / num_microbatches
             forward_data_store.append(loss_reduced)
