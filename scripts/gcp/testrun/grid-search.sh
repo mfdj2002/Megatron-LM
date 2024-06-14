@@ -88,7 +88,7 @@ fi
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 # MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
 MASTER_ADDR=$(hostname)
-MASTER_PORT=6011
+MASTER_PORT=6113
 
 # ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
@@ -266,7 +266,7 @@ USE_NSYS=0
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for global_batch_size in 8; do #8 16
+for global_batch_size in 8; do
     for micro_batch_size in 1; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do

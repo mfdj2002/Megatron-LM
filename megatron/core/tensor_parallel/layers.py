@@ -331,7 +331,7 @@ class LinearWithGradAccumulationAndAsyncCommunication(torch.autograd.Function):
         async_grad_allreduce,
         sequence_parallel,
     ):
-        ctx.save_for_backward(input, weight)
+        #ctx.save_for_backward(input, weight)
         ctx.use_bias = bias is not None
         ctx.gradient_accumulation_fusion = gradient_accumulation_fusion
         ctx.async_grad_allreduce = async_grad_allreduce
@@ -349,6 +349,7 @@ class LinearWithGradAccumulationAndAsyncCommunication(torch.autograd.Function):
             total_input = all_gather_buffer
         else:
             total_input = input
+        
 
         output = torch.matmul(total_input, weight.t())
         if bias is not None:

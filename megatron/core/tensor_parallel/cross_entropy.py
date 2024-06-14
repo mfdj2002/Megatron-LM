@@ -9,14 +9,29 @@ from megatron.core.parallel_state import (
 )
 
 from .utils import VocabUtility
-import torch
-from megatron.utils import report_memory
+#import torch
+#from megatron.utils import report_memory
+
+def report_memory(name):
+    """Simple GPU memory report."""
+    mega_bytes = 1024.0 * 1024.0
+    string = name + ' memory (MB)'
+    string += ' | allocated: {}'.format(
+        torch.cuda.memory_allocated() / mega_bytes)
+    string += ' | max allocated: {}'.format(
+        torch.cuda.max_memory_allocated() / mega_bytes)
+    string += ' | reserved: {}'.format(
+        torch.cuda.memory_reserved() / mega_bytes)
+    string += ' | max reserved: {}'.format(
+        torch.cuda.max_memory_reserved() / mega_bytes)
+    #if mpu.get_data_parallel_rank() == 0:
+    print("[Rank {}] {}".format(torch.distributed.get_rank(), string),
+              flush=True)
 
 class _VocabParallelCrossEntropy(torch.autograd.Function):
     @staticmethod
     def forward(ctx, vocab_parallel_logits, target, label_smoothing=0.0):
-        if torch.distributed.get_rank == 7:
-            report_memory("is last rank and reached forward pass of _VocabParallelCrossEntropy")
+        report_memory("is last rank and reached forward pass of _VocabParallelCrossEntropy")
 
         # Maximum value along vocab dimension across all GPUs.
         logits_max = torch.max(vocab_parallel_logits, dim=-1)[0]

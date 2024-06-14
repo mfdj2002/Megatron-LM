@@ -15,13 +15,31 @@ from .module import MegatronModule
 from .transformer import ParallelTransformer
 from .utils import get_linear_layer
 from .utils import init_method_normal, scaled_init_method_normal
+#from megatron.utils import report_memory
 
+
+def report_memory(name):
+    """Simple GPU memory report."""
+    mega_bytes = 1024.0 * 1024.0
+    string = name + ' memory (MB)'
+    string += ' | allocated: {}'.format(
+        torch.cuda.memory_allocated() / mega_bytes)
+    string += ' | max allocated: {}'.format(
+        torch.cuda.max_memory_allocated() / mega_bytes)
+    string += ' | reserved: {}'.format(
+        torch.cuda.memory_reserved() / mega_bytes)
+    string += ' | max reserved: {}'.format(
+        torch.cuda.max_memory_reserved() / mega_bytes)
+    #if mpu.get_data_parallel_rank() == 0:
+    print("[Rank {}] {}".format(torch.distributed.get_rank(), string),
+              flush=True)
 
 def parallel_lm_logits(input_, word_embeddings_weight, parallel_output,
                        bias=None):
     """LM logits using word embedding weights."""
     args = get_args()
     # Parallel logits.
+    report_memory("just entering into parallel_lm_logits")
     if args.async_tensor_model_parallel_allreduce or\
             args.sequence_parallel:
         input_parallel = input_
@@ -32,6 +50,7 @@ def parallel_lm_logits(input_, word_embeddings_weight, parallel_output,
         input_parallel = tensor_parallel.copy_to_tensor_model_parallel_region(input_)
         async_grad_allreduce = False
 
+    report_memory("before matmul")
     # Matrix multiply.
     logits_parallel = tensor_parallel.linear_with_grad_accumulation_and_async_allreduce(
         input=input_parallel,
@@ -41,12 +60,14 @@ def parallel_lm_logits(input_, word_embeddings_weight, parallel_output,
         async_grad_allreduce=async_grad_allreduce,
         sequence_parallel=args.sequence_parallel)
     # Gather if needed.
-
+    report_memory("after matmul")
     if parallel_output:
         return logits_parallel
 
-    return tensor_parallel.gather_from_tensor_model_parallel_region(logits_parallel)
-
+    res = tensor_parallel.gather_from_tensor_model_parallel_region(logits_parallel)
+    report_memory("after gather from tensor model parallel region")
+    #return tensor_parallel.gather_from_tensor_model_parallel_region(logits_parallel)
+    return res
 
 def get_language_model(config, num_tokentypes, add_pooler,
                        encoder_attn_mask_type,
