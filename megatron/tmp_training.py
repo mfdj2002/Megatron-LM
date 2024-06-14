@@ -271,19 +271,19 @@ def pretrain(train_valid_test_dataset_provider,
 
         iteration = args.iteration
 
-    if args.do_valid:
-        prefix = f'iteration {iteration} on validation set'
-        evaluate_and_print_results(prefix, forward_step_func,
-                                   valid_data_iterator, model,
-                                   iteration, process_non_loss_data_func, config,
-                                   verbose=True, write_to_tensorboard=not args.skip_train)
+    #if args.do_valid:
+    #    prefix = f'iteration {iteration} on validation set'
+    #    evaluate_and_print_results(prefix, forward_step_func,
+    #                               valid_data_iterator, model,
+    #                               iteration, process_non_loss_data_func, config,
+    #                               verbose=True, write_to_tensorboard=not args.skip_train)
 
-    if args.do_test:
-        prefix = f'iteration {iteration} on test set'
-        evaluate_and_print_results(prefix, forward_step_func,
-                                   test_data_iterator, model,
-                                   iteration, process_non_loss_data_func, config,
-                                   verbose=True, write_to_tensorboard=not args.skip_train)
+    #if args.do_test:
+    #    prefix = f'iteration {iteration} on test set'
+    #    evaluate_and_print_results(prefix, forward_step_func,
+    #                               test_data_iterator, model,
+    #                               iteration, process_non_loss_data_func, config,
+    #                               verbose=True, write_to_tensorboard=not args.skip_train)
 
 
 
@@ -939,62 +939,62 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                 'validation_iterations_time_msecs_avg': validation_iterations_time_msecs_avg
             })
 
-#    while iteration < args.train_iters:
- #       if args.profile and \
- #          iteration == args.profile_step_start and \
- #          torch.distributed.get_rank() in args.profile_ranks:
- #           torch.cuda.cudart().cudaProfilerStart()
- #           torch.autograd.profiler.emit_nvtx(record_shapes=True).__enter__()
+    while iteration < args.train_iters:
+        if args.profile and \
+           iteration == args.profile_step_start and \
+           torch.distributed.get_rank() in args.profile_ranks:
+            torch.cuda.cudart().cudaProfilerStart()
+            torch.autograd.profiler.emit_nvtx(record_shapes=True).__enter__()
 
         # Update number of microbatches first without consistency check to decide if a
         # checkpoint should be saved. If the number of microbatches is different
         # from the previous iteration, save a checkpoint. Then run consistency check
         # to make sure training configuration is still valid.
-  #      update_num_microbatches(args.consumed_train_samples, consistency_check=False)
-  #      if get_num_microbatches() != num_microbatches and iteration != 0:
-  #          assert get_num_microbatches() > num_microbatches, \
-  #              "number of microbatches should be increasing due to batch size rampup"
-  #          save_checkpoint_and_time(iteration, model, optimizer,
-  #                                   opt_param_scheduler,
-  #                                   num_floating_point_operations_so_far)
-  #      num_microbatches = get_num_microbatches()
-  #      update_num_microbatches(args.consumed_train_samples, consistency_check=True)
-#
- #       args.curr_iteration = iteration
-  #      loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
-   #         train_step(forward_step_func,
-  #                     train_data_iterator,
-  #                     model,
-  #                     optimizer,
-  #                     opt_param_scheduler,
-  #                     config)
-  #      iteration += 1
-  #      batch_size = mpu.get_data_parallel_world_size() * \
-  #                   args.micro_batch_size * \
-  #                   get_num_microbatches()
-  #      args.consumed_train_samples += batch_size
-  #      num_floating_point_operations_so_far += num_floating_point_operations(args, batch_size)
+        update_num_microbatches(args.consumed_train_samples, consistency_check=False)
+        if get_num_microbatches() != num_microbatches and iteration != 0:
+            assert get_num_microbatches() > num_microbatches, \
+                "number of microbatches should be increasing due to batch size rampup"
+            save_checkpoint_and_time(iteration, model, optimizer,
+                                     opt_param_scheduler,
+                                     num_floating_point_operations_so_far)
+        num_microbatches = get_num_microbatches()
+        update_num_microbatches(args.consumed_train_samples, consistency_check=True)
+
+        args.curr_iteration = iteration
+        loss_dict, skipped_iter, grad_norm, num_zeros_in_grad = \
+            train_step(forward_step_func,
+                       train_data_iterator,
+                       model,
+                       optimizer,
+                       opt_param_scheduler,
+                       config)
+        iteration += 1
+        batch_size = mpu.get_data_parallel_world_size() * \
+                     args.micro_batch_size * \
+                     get_num_microbatches()
+        args.consumed_train_samples += batch_size
+        num_floating_point_operations_so_far += num_floating_point_operations(args, batch_size)
 
         # Logging.
-  #      loss_scale = optimizer.get_loss_scale().item()
-  #      params_norm = None
-  #      if args.log_params_norm:
-  #          params_norm = calc_params_l2_norm(model)
+        loss_scale = optimizer.get_loss_scale().item()
+        params_norm = None
+        if args.log_params_norm:
+            params_norm = calc_params_l2_norm(model)
 
-#        if iteration % args.log_interval == 0:
- #           track_e2e_metrics()
-#
- #       report_memory_flag = training_log(loss_dict, total_loss_dict,
-  #                                        optimizer.param_groups[0]['lr'],
-  #                                        iteration, loss_scale,
-  #                                        report_memory_flag, skipped_iter,
-  #                                        grad_norm, params_norm, num_zeros_in_grad)
+        if iteration % args.log_interval == 0:
+            track_e2e_metrics()
+
+        report_memory_flag = training_log(loss_dict, total_loss_dict,
+                                          optimizer.param_groups[0]['lr'],
+                                          iteration, loss_scale,
+                                          report_memory_flag, skipped_iter,
+                                          grad_norm, params_norm, num_zeros_in_grad)
 
         # Autoresume
-   #     if args.adlr_autoresume and \
-   #        (iteration % args.adlr_autoresume_interval == 0):
-   #         check_adlr_autoresume_termination(iteration, model, optimizer,
-   #                                           opt_param_scheduler)
+        if args.adlr_autoresume and \
+           (iteration % args.adlr_autoresume_interval == 0):
+            check_adlr_autoresume_termination(iteration, model, optimizer,
+                                              opt_param_scheduler)
 
         # Evaluation
         if args.eval_interval and iteration % args.eval_interval == 0 and \
@@ -1031,7 +1031,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                                          num_floating_point_operations_so_far)
                 print_datetime('exiting program after receiving SIGTERM.')
                 exit = True
-               # break
+                break
 
         if args.save and args.save_interval and \
            iteration % args.save_interval == 0:
@@ -1058,7 +1058,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
                                              num_floating_point_operations_so_far)
                 print_datetime('exiting program after {} minutes'.format(train_time))
                 exit = True
-                #break
+                break
 
         # Exiting based on iterations
         if args.exit_interval and iteration % args.exit_interval == 0:
@@ -1069,7 +1069,7 @@ def train(forward_step_func, model, optimizer, opt_param_scheduler,
             torch.distributed.barrier()
             print_datetime('exiting program at iteration {}'.format(iteration))
             exit = True
-            #break
+            break
 
         if args.profile and \
            iteration == args.profile_step_end and \
@@ -1119,7 +1119,8 @@ def evaluate(forward_step_func,
     # Turn on evaluation mode which disables dropout.
     # for model_module in model:
     #     model_module.eval()
-
+    # for model_module in model:
+    #     model_module.eval()
 
     total_loss_dict = {}
 
@@ -1127,15 +1128,15 @@ def evaluate(forward_step_func,
     # eval_batch_size = args.global_batch_size
     # eval_num_microbatches = eval_batch_size // \
     #     (args.micro_batch_size * args.data_parallel_size)
-
+    # eval_batch_size = args.global_batch_size
+    # eval_num_microbatches = eval_batch_size // \
+    #     (args.micro_batch_size * args.data_parallel_size)
 
     with torch.no_grad():
-        data_iterators = build_valid_data_iterators([4, 8, 16, 32, 64, 128])
-        for i, microbatch_size in enumerate([4, 8, 16, 32, 64, 128]):
+        data_iterators = build_valid_data_iterators([1])
+        for i, microbatch_size in enumerate([1]):
             # for model_module in model:
             #     model_module.reset_pipeline()
-            print("*****************resetting peak allocated memory********************")
-            torch.cuda.reset_peak_memory_stats()
             number_of_microbatches = args.world_size # let global batch size be at least 1024
             args.micro_batch_size = microbatch_size
             args.global_batch_size = microbatch_size * args.world_size
@@ -1165,16 +1166,16 @@ def evaluate(forward_step_func,
                 config.timers = get_timers()
 
                 # Empty unused memory
-                if args.empty_unused_memory_level >= 1:
-                    torch.cuda.empty_cache()
+                #if args.empty_unused_memory_level >= 1:
+                torch.cuda.empty_cache()
 
                 report_memory("eval memory report for microbatch size {}".format(microbatch_size))
-                # if mpu.is_pipeline_last_stage(ignore_virtual=True):
-                #     # Reduce across processes.
-                #     for loss_dict in loss_dicts:
-                #         for key in loss_dict:
-                #             total_loss_dict[key] = total_loss_dict.get(
-                #                 key, torch.tensor([0.0], dtype=torch.float, device='cuda')) + loss_dict[key]
+                if mpu.is_pipeline_last_stage(ignore_virtual=True):
+                    # Reduce across processes.
+                    for loss_dict in loss_dicts:
+                        for key in loss_dict:
+                            total_loss_dict[key] = total_loss_dict.get(
+                                key, torch.tensor([0.0], dtype=torch.float, device='cuda')) + loss_dict[key]
 
                 args.consumed_valid_samples += microbatch_size
 
@@ -1191,18 +1192,29 @@ def evaluate(forward_step_func,
                         return None, None, True
 
             collected_non_loss_data = None
-            # if process_non_loss_data_func is not None and is_last_rank():
-            #     collected_non_loss_data = forward_backward_func(
-            #         forward_step_func=forward_step_func,
-            #         data_iterator=data_iterator,
-            #         model=model,
-            #         num_microbatches=get_num_microbatches(),
-            #         seq_length=args.seq_length,
-            #         micro_batch_size=args.micro_batch_size,
-            #         decoder_seq_length=args.decoder_seq_length,
-            #         forward_only=True,
-            #         collect_non_loss_data=True)
-
+            if process_non_loss_data_func is not None and is_last_rank():
+                collected_non_loss_data = forward_backward_func(
+                    forward_step_func=forward_step_func,
+                    data_iterator=data_iterator,
+                    model=model,
+                    num_microbatches=get_num_microbatches(),
+                    seq_length=args.seq_length,
+                    micro_batch_size=args.micro_batch_size,
+                    decoder_seq_length=args.decoder_seq_length,
+                    forward_only=True,
+                    collect_non_loss_data=True)
+            collected_non_loss_data = None
+            if process_non_loss_data_func is not None and is_last_rank():
+                collected_non_loss_data = forward_backward_func(
+                    forward_step_func=forward_step_func,
+                    data_iterator=data_iterator,
+                    model=model,
+                    num_microbatches=get_num_microbatches(),
+                    seq_length=args.seq_length,
+                    micro_batch_size=args.micro_batch_size,
+                    decoder_seq_length=args.decoder_seq_length,
+                    forward_only=True,
+                    collect_non_loss_data=True)
 
     # Move model back to the train mode.
     for model_module in model:
@@ -1210,7 +1222,8 @@ def evaluate(forward_step_func,
 
     # for key in total_loss_dict:
     #     total_loss_dict[key] /= args.eval_iters * microbatch_size
-
+    # for key in total_loss_dict:
+    #     total_loss_dict[key] /= args.eval_iters * microbatch_size
 
     timers('evaluate').stop()
     timers.log(['evaluate'])
@@ -1589,5 +1602,4 @@ def build_valid_datasets(build_train_valid_test_datasets_provider, micro_batch_s
         datasets.append(valid_ds)
     # Build the datasets.
     return datasets
-
 
