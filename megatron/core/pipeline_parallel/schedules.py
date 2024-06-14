@@ -12,6 +12,7 @@ from megatron.core.pipeline_parallel import p2p_communication
 from megatron.core.transformer.moe.router import MoEAuxLossAutoScaler
 from megatron.core.utils import get_attr_wrapped_model, get_model_config, get_model_type
 from megatron.utils import report_memory
+import time
 
 # Types
 Shape = Union[List[int], torch.Size]
@@ -1028,11 +1029,13 @@ def get_tensor_shapes(
 
 def recv_forward(tensor_shapes, config):
     input_tensors = []
+    report_memory(f"before recv_forward")
     for tensor_shape in tensor_shapes:
         if tensor_shape is None:
             input_tensors.append(None)
         else:
             input_tensors.append(p2p_communication.recv_forward(tensor_shape, config))
+            report_memory(f"time: {time.time()}after recv_forward")
     return input_tensors
 
 
@@ -1246,9 +1249,9 @@ def forward_backward_pipelining_without_interleaving(
     # If all microbatches are run in warmup / cooldown phase, then no need to
     # receive this tensor here.
     if num_microbatches_remaining > 0:
-        report_memory(f"before steady state, device {torch.distributed.get_rank()}")
+        report_memory(f"time: {time.time()}, before steady state")
         input_tensor = recv_forward(recv_tensor_shapes, config)
-        report_memory(f"after recv fwd in steady state on device {torch.distributed.get_rank()}")
+        report_memory(f"time: {time.time()}, after recv fwd in steady state")
 
     # Run 1F1B in steady state.
     for i in range(num_microbatches_remaining):
