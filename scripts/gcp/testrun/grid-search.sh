@@ -88,7 +88,7 @@ fi
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 # MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
 MASTER_ADDR=$(hostname)
-MASTER_PORT=6113
+MASTER_PORT=6123
 
 # ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
