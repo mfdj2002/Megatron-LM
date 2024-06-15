@@ -88,7 +88,7 @@ fi
 WORLD_SIZE=$(($GPUS_PER_NODE * $NNODES))
 # MASTER_ADDR=$(ssh -n $(head -n 1 "$HOSTFILE") "hostname")
 MASTER_ADDR=$(hostname)
-MASTER_PORT=6123
+MASTER_PORT=6124
 
 # ADDR_SUFFIX="${MASTER_ADDR#*.}"
 
@@ -263,11 +263,22 @@ launch() {
 
 USE_NSYS=0
 
+pairs=("8,1" "16,2" "32,4" "64,8" "128,16" "256,32" "512,64" "1024,128")
+
+# Iterate over the array
+for pair in "${pairs[@]}"; do
+    # Split the tuple into individual values
+    IFS=',' read -ra values <<< "$pair"
+    
+    # Access the values
+    global_batch_size="${values[0]}"
+    micro_batch_size="${values[1]}"
+
 counter=0
 # for distribute_saved_activations in 0 1; do
 #for USE_NSYS in 0 1; do
-for global_batch_size in 8; do
-    for micro_batch_size in 1; do
+#for global_batch_size in 8; do
+    #for micro_batch_size in 1; do
         # for recompute_activation in 0 1; do
         # for standalone_embedding in 0 1; do
         #     for no_clone_scatter_output_in_embedding in 0 1; do
@@ -380,7 +391,7 @@ for global_batch_size in 8; do
             # done
         done
     done
-done
+#done
 #done
 # done
 counter=$((counter + 1))

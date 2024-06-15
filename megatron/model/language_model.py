@@ -20,19 +20,7 @@ from .utils import init_method_normal, scaled_init_method_normal
 
 def report_memory(name):
     """Simple GPU memory report."""
-    mega_bytes = 1024.0 * 1024.0
-    string = name + ' memory (MB)'
-    string += ' | allocated: {}'.format(
-        torch.cuda.memory_allocated() / mega_bytes)
-    string += ' | max allocated: {}'.format(
-        torch.cuda.max_memory_allocated() / mega_bytes)
-    string += ' | reserved: {}'.format(
-        torch.cuda.memory_reserved() / mega_bytes)
-    string += ' | max reserved: {}'.format(
-        torch.cuda.max_memory_reserved() / mega_bytes)
-    #if mpu.get_data_parallel_rank() == 0:
-    print("[Rank {}] {}".format(torch.distributed.get_rank(), string),
-              flush=True)
+    return
 
 def parallel_lm_logits(input_, word_embeddings_weight, parallel_output,
                        bias=None):

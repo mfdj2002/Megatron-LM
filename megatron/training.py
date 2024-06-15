@@ -1202,7 +1202,8 @@ def evaluate(forward_step_func,
             if args.empty_unused_memory_level >= 1:
                 torch.cuda.empty_cache()
 
-            report_memory("eval memory report for microbatch size {}".format(args.micro_batch_size))
+            if iteration == 1:
+                necessary_report_memory("eval memory report for microbatch size {}".format(args.micro_batch_size))
             # if mpu.is_pipeline_last_stage(ignore_virtual=True):
             #     # Reduce across processes.
             #     for loss_dict in loss_dicts:
@@ -1251,6 +1252,21 @@ def evaluate(forward_step_func,
 
     return total_loss_dict, collected_non_loss_data, False
 
+def necessary_report_memory(name):
+    """Simple GPU memory report."""
+    mega_bytes = 1024.0 * 1024.0
+    string = name + ' memory (MB)'
+    string += ' | allocated: {}'.format(
+        torch.cuda.memory_allocated() / mega_bytes)
+    string += ' | max allocated: {}'.format(
+        torch.cuda.max_memory_allocated() / mega_bytes)
+    string += ' | reserved: {}'.format(
+        torch.cuda.memory_reserved() / mega_bytes)
+    string += ' | max reserved: {}'.format(
+        torch.cuda.max_memory_reserved() / mega_bytes)
+    if mpu.get_data_parallel_rank() == 0:
+        print("[Rank {}] {}".format(torch.distributed.get_rank(), string),
+              flush=True)
 
 def evaluate_and_print_results(prefix, forward_step_func,
                                data_iterator, model,

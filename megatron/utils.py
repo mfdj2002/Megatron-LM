@@ -107,20 +107,7 @@ def average_losses_across_data_parallel_group(losses):
 
 def report_memory(name):
     """Simple GPU memory report."""
-    mega_bytes = 1024.0 * 1024.0
-    string = name + ' memory (MB)'
-    string += ' | allocated: {}'.format(
-        torch.cuda.memory_allocated() / mega_bytes)
-    string += ' | max allocated: {}'.format(
-        torch.cuda.max_memory_allocated() / mega_bytes)
-    string += ' | reserved: {}'.format(
-        torch.cuda.memory_reserved() / mega_bytes)
-    string += ' | max reserved: {}'.format(
-        torch.cuda.max_memory_reserved() / mega_bytes)
-    if mpu.get_data_parallel_rank() == 0:
-        print("[Rank {}] {}".format(torch.distributed.get_rank(), string),
-              flush=True)
-
+    return
 
 def print_params_min_max_norm(optimizer, iteration):
     """Print min, max, and norm of all parameters."""
@@ -276,7 +263,7 @@ def get_batch_on_this_tp_rank(data_iterator):
 
     args = get_args()
 
-    print(f"microbatch right now: {args.micro_batch_size}", flush=True)
+    #print(f"microbatch right now: {args.micro_batch_size}", flush=True)
     def _broadcast(item):
        torch.distributed.broadcast(item, mpu.get_tensor_model_parallel_src_rank(), group=mpu.get_tensor_model_parallel_group())
 

@@ -144,8 +144,8 @@ def forward_step(data_iterator, model: GPTModel):
     output_tensor = model(tokens, position_ids, attention_mask,
                           labels=labels)
     
-    if labels is not None:
-        print_rank_0(f"label dimensions: {labels.shape}")    
+    #if labels is not None:
+    #    print_rank_0(f"label dimensions: {labels.shape}")    
     return output_tensor, partial(loss_func, loss_mask)
 
 
